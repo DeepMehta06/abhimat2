@@ -1,0 +1,60 @@
+import axios from 'axios';
+
+const api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+    timeout: 10000,
+});
+
+// Attach JWT token to every request
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('abhimat_token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+});
+
+// Handle 401 globally — redirect to login
+api.interceptors.response.use(
+    (res) => res,
+    (err) => {
+        if (err.response?.status === 401) {
+            localStorage.removeItem('abhimat_token');
+            localStorage.removeItem('abhimat_user');
+            window.location.href = '/';
+        }
+        return Promise.reject(err);
+    }
+);
+
+// Auth
+export const login = (member_id, password) => api.post('/auth/login', { member_id, password });
+export const getMe = () => api.get('/auth/me');
+
+// Session
+export const getActiveSession = () => api.get('/session/active');
+
+// Hand
+export const raiseHand = () => api.post('/hand/raise');
+export const lowerHand = () => api.delete('/hand/lower');
+
+// Queue
+export const getQueue = () => api.get('/queue');
+
+// Speaker (moderator)
+export const approveSpeaker = (queueId) => api.patch(`/speaker/approve/${queueId}`);
+export const revokeMic = () => api.patch('/speaker/revoke');
+export const markDone = () => api.patch('/speaker/done');
+
+// Chat
+export const getChat = (page = 0) => api.get(`/chat?page=${page}`);
+export const postMessage = (content) => api.post('/chat', { content });
+
+// Polls
+export const createPoll = (question, options) => api.post('/polls', { question, options });
+export const getActivePoll = () => api.get('/polls/active');
+export const castVote = (pollId, option_id) => api.post(`/polls/${pollId}/vote`, { option_id });
+export const closePoll = (pollId, party, points) => api.patch(`/polls/${pollId}/close`, { party, points });
+
+// Points
+export const getLeaderboard = () => api.get('/points');
+
+export default api;

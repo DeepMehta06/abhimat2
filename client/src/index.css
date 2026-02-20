@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Round');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+@import "tailwindcss";
+
+/* ─── Tailwind v4 custom theme tokens ─── */
+@theme {
+  --color-saffron: #FF9933;
+  --color-india-green: #138808;
+  --color-ashoka-blue: #000080;
+  --color-accent: #FFD700;
+  --color-alert-red: #dc2626;
+  --color-neutral-dark: #1d140c;
+  --color-background-light: #f8f7f5;
+
+  --font-display: 'Inter', 'Plus Jakarta Sans', sans-serif;
+
+  --animate-spin-slow: spin-slow 8s linear infinite;
+  --animate-wave-gradient: wave-gradient 3s linear infinite;
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes wave-gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
+
+
+/* ─── Design Tokens ─── */
+:root {
+  --saffron: #FF9933;
+  --india-green: #138808;
+  --ashoka-blue: #000080;
+  --accent: #FFD700;
+  --alert-red: #dc2626;
+  --neutral-dark: #1d140c;
+  --background-light: #f8f7f5;
+}
+
+/* ─── Base ─── */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+  min-height: 100dvh;
+  background-color: var(--background-light);
+  color: var(--neutral-dark);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Tailwind aliases ─── */
+.font-display {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ─── Tricolor wavy button ─── */
+.btn-wavy-tricolor {
+  background: linear-gradient(110deg,
+      #FF9933 0%, #FF9933 40%,
+      #138808 50%,
+      #FF9933 60%, #FF9933 100%);
+  background-size: 200% 200%;
+  color: white;
+  animation: wave-gradient 3s linear infinite;
+}
+
+@keyframes wave-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ─── Slow spin (Ashoka Chakra) ─── */
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Dot pattern background ─── */
+.bg-pattern {
+  background-image: radial-gradient(#FF9933 0.5px, transparent 0.5px);
+  background-size: 16px 16px;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+/* ─── No scrollbar utility ─── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ─── Shadow ─── */
+.shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
