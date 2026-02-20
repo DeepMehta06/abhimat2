@@ -51,7 +51,7 @@ export default function ChatPanel({ sessionId }) {
     };
 
     return (
-        <div className="flex flex-col h-[420px] bg-white rounded-xl border border-gray-100 shadow-soft overflow-hidden">
+        <div className="flex flex-col h-[420px] lg:h-[600px] bg-white rounded-xl border border-gray-100 shadow-soft overflow-hidden">
             {/* Header */}
             <div className="p-3 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
                 <span className="material-symbols-outlined text-saffron">forum</span>

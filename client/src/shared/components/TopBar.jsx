@@ -11,7 +11,7 @@ export default function TopBar({ session, liveCount }) {
                 <div className="flex-1 bg-white border-y border-gray-200" />
                 <div className="flex-1 bg-india-green" />
             </div>
-            <div className="px-4 py-3 flex items-center justify-between">
+            <div className="px-4 lg:px-8 py-3 flex items-center justify-between max-w-7xl mx-auto w-full">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-saffron via-accent to-india-green flex items-center justify-center shadow-md">
                         <span className="material-symbols-outlined text-white text-2xl">gavel</span>
@@ -40,7 +40,7 @@ export default function TopBar({ session, liveCount }) {
             </div>
             {/* Session live banner */}
             {session && (
-                <div className="px-4 py-1.5 bg-gradient-to-r from-saffron/10 via-white to-india-green/10 border-y border-gray-100 flex items-center justify-between text-xs font-bold text-neutral-dark">
+                <div className="px-4 lg:px-8 py-1.5 bg-gradient-to-r from-saffron/10 via-white to-india-green/10 border-y border-gray-100 flex items-center justify-between text-xs font-bold text-neutral-dark max-w-7xl mx-auto w-full">
                     <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-saffron opacity-75" />
