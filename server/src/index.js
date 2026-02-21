@@ -24,7 +24,12 @@ const PORT = process.env.PORT || 3001;
 // Security & logging
 app.use(helmet());
 app.use(morgan('dev'));
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://abhimat.netlify.app',
+    ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : [])
+];
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 // Global rate limiter — raised for events where all users share same WiFi IP
@@ -40,7 +45,9 @@ app.use(limiter);
 
 // Hand-raise limiter — per IP, raised for shared WiFi scenarios
 // 30 per 10s per IP = ~200 people can all raise hands without hitting limit
-const handLimiter = rateLimit({ windowMs: 10 * 1000, max: 30, legacyHeaders: false });
+// Raised to 300: ~200 users on shared event WiFi all raising hands in a 10s window must not be blocked.
+// Each user fires 1 request, all from the same IP (NAT), so cap must exceed max expected participants.
+const handLimiter = rateLimit({ windowMs: 10 * 1000, max: 300, legacyHeaders: false });
 
 // Routes
 app.use('/auth', authRouter);
