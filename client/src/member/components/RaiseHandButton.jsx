@@ -9,7 +9,14 @@ export default function RaiseHandButton({ queueEntry, onUpdate }) {
 
     async function handleRaise() {
         setLoading(true);
-        try { await raiseHand(); onUpdate(); } catch (e) { console.error(e); }
+        try {
+            await raiseHand();
+            onUpdate();
+        } catch (e) {
+            if (e.response?.status !== 409) {
+                console.error('Failed to raise hand:', e);
+            }
+        }
         finally { setLoading(false); }
     }
 

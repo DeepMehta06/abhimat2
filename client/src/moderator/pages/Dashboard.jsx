@@ -7,6 +7,9 @@ import FloorStatus from '../../shared/components/FloorStatus';
 import SpeakerQueue from '../components/SpeakerQueue';
 import PollCreator from '../components/PollCreator';
 import Leaderboard from '../components/Leaderboard';
+import SpeakerGrader from '../components/SpeakerGrader';
+import ChatPanel from '../../member/components/ChatPanel';
+import { updateSessionStage } from '../../shared/services/api';
 
 const PARTIES = ['BJP', 'INC', 'AAP', 'TMC', 'SP', 'BSP'];
 
@@ -64,15 +67,17 @@ export default function ModeratorDashboard() {
     /* ── Desktop sidebar nav ─────────────────────────────────────────── */
     const Sidebar = () => (
         <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-100 min-h-[calc(100vh-64px)] sticky top-[64px] overflow-y-auto">
-            {/* Moderator badge */}
+            {/* Role badge */}
             <div className="p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-saffron via-accent to-india-green flex items-center justify-center text-lg font-black text-white shadow-md">
-                        <span className="material-symbols-outlined text-xl">shield_person</span>
+                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center text-lg font-black text-white shadow-md ${user?.role === 'judge' ? 'bg-gradient-to-br from-ashoka-blue to-purple-600' : 'bg-gradient-to-br from-saffron via-accent to-india-green'}`}>
+                        <span className="material-symbols-outlined text-xl">{user?.role === 'judge' ? 'gavel' : 'shield_person'}</span>
                     </div>
                     <div className="min-w-0">
                         <p className="text-sm font-bold text-neutral-dark truncate">{user?.name}</p>
-                        <p className="text-[10px] text-saffron font-semibold uppercase">Moderator</p>
+                        <p className={`text-[10px] font-semibold uppercase ${user?.role === 'judge' ? 'text-ashoka-blue' : 'text-saffron'}`}>
+                            {user?.role === 'judge' ? 'Judge' : 'Moderator'}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -151,24 +156,63 @@ export default function ModeratorDashboard() {
 
                     {/* Tab content */}
                     {tab === 'session' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                            <SpeakerQueue
-                                queue={queue}
-                                currentSpeaker={session?.current_speaker}
-                                onUpdate={loadAll}
-                            />
-                            <FloorStatus session={session} queue={queue} />
+                        <div className="space-y-5">
+                            {/* Stage Controls: Only Moderators can change the stage */}
+                            {session && user?.role === 'moderator' && (
+                                <section className="bg-white rounded-xl p-4 shadow-soft border border-gray-100 flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-sm font-bold text-neutral-dark flex items-center gap-2">
+                                            <span className="material-symbols-outlined text-saffron">auto_awesome_motion</span>
+                                            Event Stage
+                                        </h2>
+                                        <p className="text-xs text-gray-500 font-medium">Controls the allowed power cards.</p>
+                                    </div>
+                                    <select
+                                        className="bg-gray-50 text-sm font-bold text-neutral-dark border-0 rounded-lg py-2 px-4 outline-none focus:ring-2 focus:ring-saffron cursor-pointer"
+                                        value={session.stage || 'first_bill'}
+                                        onChange={async (e) => {
+                                            try {
+                                                await updateSessionStage(session.id, e.target.value);
+                                            } catch (err) {
+                                                alert('Failed to update stage');
+                                            }
+                                        }}
+                                    >
+                                        <option value="first_bill">Stage 1: First Bill</option>
+                                        <option value="one_on_one">Stage 2: One on One</option>
+                                        <option value="third_round">Stage 3: Third Round</option>
+                                    </select>
+                                </section>
+                            )}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                                <SpeakerQueue queue={queue} currentSpeaker={session?.current_speaker} onUpdate={loadAll} userRole={user?.role} />
+                                <FloorStatus session={session} queue={queue} />
+                            </div>
                         </div>
                     )}
 
                     {tab === 'polls' && (
-                        <div className="max-w-2xl">
-                            <PollCreator activePoll={poll} parties={PARTIES} onUpdate={loadAll} />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 h-full min-h-[500px]">
+                            <div className="flex flex-col overflow-hidden max-h-[70vh]">
+                                <ChatPanel session={session} />
+                            </div>
+                            <div className="overflow-y-auto">
+                                {user?.role === 'moderator' ? (
+                                    <PollCreator activePoll={poll} parties={PARTIES} onUpdate={loadAll} />
+                                ) : (
+                                    <div className="bg-white rounded-xl p-8 text-center border border-gray-100 shadow-soft">
+                                        <span className="material-symbols-outlined text-5xl text-gray-200">poll</span>
+                                        <p className="text-gray-500 font-bold mt-4">Polls are managed by the Moderator.</p>
+                                        <p className="text-sm text-gray-400 mt-2">Any active poll points will automatically calculate your bonus grading score constraints.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
                     {tab === 'stats' && (
-                        <div className="max-w-2xl">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <SpeakerGrader session={session} activePoll={poll} onGradeSubmitted={loadAll} />
                             <Leaderboard leaderboard={leaderboard} />
                         </div>
                     )}

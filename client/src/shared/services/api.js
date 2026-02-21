@@ -55,6 +55,19 @@ export const castVote = (pollId, option_id) => api.post(`/polls/${pollId}/vote`,
 export const closePoll = (pollId, party, points) => api.patch(`/polls/${pollId}/close`, { party, points });
 
 // Points
+// Dashboard actions
 export const getLeaderboard = () => api.get('/points');
+export const addPoints = (party, amount) => api.post('/points/add', { party, amount });
+export const submitSpeakerGrade = (gradeData) => api.post('/moderator/grade', gradeData);
+export const getGradeStatus = () => api.get('/moderator/grade/status');
+export const updateSessionStage = (session_id, stage) => api.post('/session/stage', { session_id, stage });
+
+// Power Cards
+export const getPowerCards = () => api.get('/hand/cards');
+export const usePowerCard = (card_id, target_member_id) => api.post('/hand/use-power-card', { card_id, target_member_id });
+
+// Party Details
+export const getPartyDetails = (party) => api.get(`/party/${party}`);
+export const submitPartyDetails = (data) => api.post('/party', data);
 
 export default api;

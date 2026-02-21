@@ -7,8 +7,12 @@ import ModeratorDashboard from './moderator/pages/Dashboard';
 function ProtectedRoute({ children, requiredRole }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/" replace />;
-  if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to={user.role === 'moderator' ? '/moderator' : '/member'} replace />;
+
+  if (requiredRole === 'moderator' && user.role !== 'moderator' && user.role !== 'judge') {
+    return <Navigate to="/member" replace />;
+  }
+  if (requiredRole === 'member' && user.role !== 'member') {
+    return <Navigate to="/moderator" replace />;
   }
   return children;
 }
@@ -16,7 +20,7 @@ function ProtectedRoute({ children, requiredRole }) {
 function RootRedirect() {
   const { user } = useAuth();
   if (!user) return <Landing />;
-  return <Navigate to={user.role === 'moderator' ? '/moderator' : '/member'} replace />;
+  return <Navigate to={user.role === 'moderator' || user.role === 'judge' ? '/moderator' : '/member'} replace />;
 }
 
 export default function App() {

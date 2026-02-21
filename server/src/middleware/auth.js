@@ -21,3 +21,10 @@ export function moderatorOnly(req, res, next) {
     }
     next();
 }
+
+export function officialOnly(req, res, next) {
+    if (req.user?.role !== 'moderator' && req.user?.role !== 'judge') {
+        return res.status(403).json({ error: 'Official (Moderator/Judge) access required' });
+    }
+    next();
+}

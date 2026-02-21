@@ -7,6 +7,9 @@ import FloorStatus from '../../shared/components/FloorStatus';
 import RaiseHandButton from '../components/RaiseHandButton';
 import ChatPanel from '../components/ChatPanel';
 import PollCard from '../components/PollCard';
+import PowerCards from '../components/PowerCards';
+import PartyDetailsForm from '../components/PartyDetailsForm';
+import { getPowerCards, getPartyDetails } from '../../shared/services/api';
 
 const TABS = [
     { id: 'home', icon: 'dashboard', label: 'Session' },
@@ -19,22 +22,40 @@ export default function MemberDashboard() {
     const [session, setSession] = useState(null);
     const [queue, setQueue] = useState([]);
     const [poll, setPoll] = useState(null);
+    const [powerCards, setPowerCards] = useState([]);
+    const [partyDetails, setPartyDetails] = useState(undefined); // undefined = loading, null = not found
     const [tab, setTab] = useState('home'); // 'home' | 'chat' | 'polls'
 
     const myQueueEntry = queue.find(q => q.member?.id === user?.id);
 
     const loadAll = useCallback(async () => {
         try {
-            const [sessRes, queueRes, pollRes] = await Promise.all([
+            const [sessRes, queueRes, pollRes, cardsRes] = await Promise.all([
                 getActiveSession(),
                 getQueue(),
                 getActivePoll(),
+                getPowerCards()
             ]);
             setSession(sessRes.data.session);
             setQueue(queueRes.data.queue || []);
             setPoll(pollRes.data.poll);
+            setPowerCards(cardsRes.data?.cards || []);
+
+            if (user?.party) {
+                try {
+                    const partyRes = await getPartyDetails(user.party);
+                    setPartyDetails(partyRes.data);
+                } catch (err) {
+                    if (err.response?.status === 404) {
+                        setPartyDetails(null);
+                    } else {
+                        console.error('Error fetching party details:', err);
+                        // Default to empty object on network error to allow dashboard load or handle it
+                    }
+                }
+            }
         } catch (e) { console.error(e); }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         loadAll();
@@ -62,12 +83,15 @@ export default function MemberDashboard() {
     const Sidebar = () => (
         <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-100 min-h-[calc(100vh-64px)] sticky top-[64px] overflow-y-auto">
             {/* Profile summary */}
-            <div className="p-5 border-b border-gray-100">
+            <div className="p-5 border-b border-gray-100 relative">
+                {partyDetails?.logo_url && (
+                    <img src={partyDetails.logo_url} alt="Party Logo" className="absolute top-5 right-5 h-8 w-8 object-contain opacity-50 filter drop-shadow hover:opacity-100 transition-opacity" title={`${user?.party} Logo`} />
+                )}
                 <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-lg font-black text-saffron shadow-sm border border-gray-100">
-                        {user?.name?.charAt(0) || '?'}
+                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-lg font-black text-saffron shadow-sm border border-gray-100 shrink-0 overflow-hidden">
+                        {partyDetails?.logo_url ? <img src={partyDetails.logo_url} alt="Logo" className="w-full h-full object-cover" /> : user?.name?.charAt(0) || '?'}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 pr-6">
                         <p className="text-sm font-bold text-neutral-dark truncate">{user?.name}</p>
                         <p className="text-[10px] text-saffron font-semibold uppercase">Member of Parliament</p>
                     </div>
@@ -131,8 +155,8 @@ export default function MemberDashboard() {
                     <section className="bg-white rounded-xl p-5 shadow-soft border-t-4 border-t-saffron border-x border-b border-gray-100 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-bl-full -mr-8 -mt-8" />
                         <div className="flex items-start gap-4 relative z-10">
-                            <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-2xl font-black text-saffron shadow-sm border border-gray-100 shrink-0">
-                                {user?.name?.charAt(0) || '?'}
+                            <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-2xl font-black text-saffron shadow-sm border border-gray-100 shrink-0 overflow-hidden">
+                                {partyDetails?.logo_url ? <img src={partyDetails.logo_url} alt="Logo" className="w-full h-full object-cover" /> : user?.name?.charAt(0) || '?'}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-xl font-bold text-neutral-dark leading-tight truncate">{user?.name}</h2>
@@ -165,6 +189,26 @@ export default function MemberDashboard() {
                                 <p className="text-[10px] text-gray-400 mt-2 font-medium">{user?.member_id}</p>
                             </div>
                         </div>
+
+                        {/* Party Members (visible if details exist) */}
+                        {partyDetails?.members_data?.length > 0 && (
+                            <div className="mt-5 pt-4 border-t border-gray-100">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Party Members</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {partyDetails.members_data.map((m, i) => (
+                                        <div key={i} className="px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-2">
+                                            <div className="h-5 w-5 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-black text-neutral-dark">
+                                                {m.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-neutral-dark">{m.name}</p>
+                                                <p className="text-[9px] text-gray-500 font-medium truncate max-w-[100px]">{m.college}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </section>
 
                     {/* Tab content */}
@@ -184,6 +228,11 @@ export default function MemberDashboard() {
                                     <span className="text-sm font-black tracking-tight text-left leading-tight uppercase">Polls</span>
                                 </button>
                             </section>
+
+                            {/* Power Cards display */}
+                            {powerCards.length > 0 && (
+                                <PowerCards cards={powerCards} session={session} onUpdate={loadAll} />
+                            )}
 
                             {/* My queue position banner */}
                             {myQueueEntry && (
@@ -235,6 +284,11 @@ export default function MemberDashboard() {
                     ))}
                 </div>
             </nav>
+
+            {/* Mandatory Party Details Form Popup */}
+            {partyDetails === null && (
+                <PartyDetailsForm user={user} onComplete={loadAll} />
+            )}
         </div>
     );
 }

@@ -68,4 +68,93 @@ router.delete('/lower', authMiddleware, async (req, res) => {
     res.json({ success: true });
 });
 
+// GET /hand/cards
+// Fetches available power cards for the logged-in user
+router.get('/cards', authMiddleware, async (req, res) => {
+    const { data: session } = await supabase
+        .from('sessions')
+        .select('id, stage')
+        .eq('is_active', true)
+        .single();
+
+    if (!session) return res.json({ cards: [] });
+
+    const { data, error } = await supabase
+        .from('power_cards')
+        .select('*')
+        .eq('session_id', session.id)
+        .eq('member_id', req.user.id)
+        .eq('is_used', false);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ cards: data || [], current_stage: session.stage });
+});
+
+// POST /hand/use-power-card
+// Activates a power card
+router.post('/use-power-card', authMiddleware, async (req, res) => {
+    const { card_id, target_member_id } = req.body;
+
+    // 1. Get active session & stage
+    const { data: session } = await supabase
+        .from('sessions')
+        .select('id, stage, current_speaker_id')
+        .eq('is_active', true)
+        .single();
+
+    if (!session) return res.status(400).json({ error: 'No active session' });
+
+    // 2. Verify card ownership and unused status
+    const { data: card } = await supabase
+        .from('power_cards')
+        .select('*')
+        .eq('id', card_id)
+        .eq('member_id', req.user.id)
+        .eq('is_used', false)
+        .single();
+
+    if (!card) return res.status(400).json({ error: 'Invalid or already used card' });
+
+    // 3. Stage constraints
+    if (card.card_type === 'challenge' && session.stage !== 'one_on_one') {
+        return res.status(400).json({ error: 'Challenge card can only be used in One on One stage' });
+    }
+
+    // 4. Mark as used
+    const { error: updateError } = await supabase
+        .from('power_cards')
+        .update({ is_used: true, used_at: new Date().toISOString() })
+        .eq('id', card_id);
+
+    if (updateError) return res.status(500).json({ error: updateError.message });
+
+    if (updateError) return res.status(500).json({ error: updateError.message });
+
+    // The actual timer logic (20s interrupt, +60s add time, challenge logic) 
+    // will be handled by the frontend upon receiving this success response, 
+    // possibly combined with Realtime broadcasts.
+    try {
+        await supabase.channel('power-cards').send({
+            type: 'broadcast',
+            event: 'card_used',
+            payload: {
+                card_type: card.card_type,
+                user_name: req.user.name,
+                user_id: req.user.id,
+                target_member_id
+            }
+        });
+    } catch (err) {
+        console.error('Failed to broadcast card usage', err);
+    }
+
+    res.json({
+        success: true,
+        card_type: card.card_type,
+        user: req.user.id,
+        target_member_id
+    });
+});
+
+
 export default router;

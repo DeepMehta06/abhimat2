@@ -57,8 +57,9 @@ function DoneButton({ startedAt, onClick, loading }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function SpeakerQueue({ queue, currentSpeaker, onUpdate }) {
+export default function SpeakerQueue({ queue, currentSpeaker, onUpdate, userRole }) {
     const [loading, setLoading] = useState(null);
+    const isJudge = userRole === 'judge';
 
     async function handle(action, id = null) {
         setLoading(action);
@@ -105,21 +106,30 @@ export default function SpeakerQueue({ queue, currentSpeaker, onUpdate }) {
                             </div>
                         </div>
                         <div className="bg-saffron/5 p-3 flex gap-2">
-                            {/* Done — unlocks after 1 minute */}
-                            <DoneButton
-                                startedAt={startedAt}
-                                onClick={() => handle('done')}
-                                loading={loading === 'done'}
-                            />
-                            {/* Revoke — always available */}
-                            <button
-                                onClick={() => handle('revoke')}
-                                disabled={loading === 'revoke'}
-                                className="flex-1 bg-alert-red hover:bg-red-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-sm"
-                            >
-                                <span className="material-symbols-outlined text-base">mic_off</span>
-                                {loading === 'revoke' ? 'Revoking...' : 'REVOKE MIC'}
-                            </button>
+                            {/* Judges cannot mark done or revoke, only Moderators */}
+                            {!isJudge ? (
+                                <>
+                                    {/* Done — unlocks after 1 minute */}
+                                    <DoneButton
+                                        startedAt={startedAt}
+                                        onClick={() => handle('done')}
+                                        loading={loading === 'done'}
+                                    />
+                                    {/* Revoke — always available */}
+                                    <button
+                                        onClick={() => handle('revoke')}
+                                        disabled={loading === 'revoke'}
+                                        className="flex-1 bg-alert-red hover:bg-red-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-sm"
+                                    >
+                                        <span className="material-symbols-outlined text-base">mic_off</span>
+                                        {loading === 'revoke' ? 'Revoking...' : 'REVOKE MIC'}
+                                    </button>
+                                </>
+                            ) : (
+                                <div className="flex-1 text-center py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                    Moderator manages the floor. Please grade below.
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -152,14 +162,16 @@ export default function SpeakerQueue({ queue, currentSpeaker, onUpdate }) {
                                     <p className="text-[10px] text-gray-500 uppercase">{entry.member?.party} · {entry.member?.speeches_count || 0} speech{entry.member?.speeches_count !== 1 ? 'es' : ''}</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => handle('approve', entry.id)}
-                                disabled={!!currentSpeaker || loading === 'approve'}
-                                className="h-9 px-3 rounded-lg bg-india-green/10 text-india-green font-bold text-xs flex items-center gap-1 disabled:opacity-40 hover:bg-india-green hover:text-white transition-colors"
-                            >
-                                <span className="material-symbols-outlined text-base">check</span>
-                                Approve
-                            </button>
+                            {!isJudge && (
+                                <button
+                                    onClick={() => handle('approve', entry.id)}
+                                    disabled={!!currentSpeaker || loading === 'approve'}
+                                    className="h-9 px-3 rounded-lg bg-india-green/10 text-india-green font-bold text-xs flex items-center gap-1 disabled:opacity-40 hover:bg-india-green hover:text-white transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-base">check</span>
+                                    Approve
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>

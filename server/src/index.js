@@ -13,6 +13,8 @@ import speakerRouter from './routes/speaker.js';
 import chatRouter from './routes/chat.js';
 import pollsRouter from './routes/polls.js';
 import pointsRouter from './routes/points.js';
+import moderatorRouter from './routes/moderator.js';
+import partyRouter from './routes/party.js';
 
 dotenv.config();
 
@@ -49,6 +51,8 @@ app.use('/speaker', speakerRouter);
 app.use('/chat', chatRouter);
 app.use('/polls', pollsRouter);
 app.use('/points', pointsRouter);
+app.use('/moderator', moderatorRouter);
+app.use('/party', partyRouter);
 
 // Health check
 app.get('/health', (_, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
