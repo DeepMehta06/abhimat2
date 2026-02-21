@@ -52,4 +52,27 @@ router.post('/', authMiddleware, async (req, res) => {
     res.status(201).json({ message: data });
 });
 
+// DELETE /chat — clear chat for active session (moderator only)
+router.delete('/', authMiddleware, async (req, res) => {
+    if (req.user.role !== 'moderator') {
+        return res.status(403).json({ error: 'Only moderators can clear the chat' });
+    }
+
+    const { data: session } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+    if (!session) return res.status(400).json({ error: 'No active session' });
+
+    const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('session_id', session.id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Chat cleared successfully' });
+});
+
 export default router;

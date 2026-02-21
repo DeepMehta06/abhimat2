@@ -1,94 +1,68 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../shared/context/AuthContext';
-import { getActiveSession, getQueue, getActivePoll } from '../../shared/services/api';
-import { supabase } from '../../shared/services/supabase';
+import useUserStore from '../../store/useUserStore';
+import useSessionStore from '../../store/useSessionStore';
+import useQueueStore from '../../store/useQueueStore';
+import { getPartyDetails } from '../../shared/services/api';
 import TopBar from '../../shared/components/TopBar';
 import FloorStatus from '../../shared/components/FloorStatus';
 import RaiseHandButton from '../components/RaiseHandButton';
-import ChatPanel from '../components/ChatPanel';
 import PollCard from '../components/PollCard';
 import PowerCards from '../components/PowerCards';
 import PartyDetailsForm from '../components/PartyDetailsForm';
-import { getPowerCards, getPartyDetails } from '../../shared/services/api';
+import ChatPanel from '../components/ChatPanel';
+import StageOverlay from '../../components/floor/StageOverlay';
+import PowerCardAnimation from '../../components/floor/PowerCardAnimation';
 
 const TABS = [
     { id: 'home', icon: 'dashboard', label: 'Session' },
-    { id: 'chat', icon: 'forum', label: 'Chat' },
     { id: 'polls', icon: 'leaderboard', label: 'Polls' },
+    { id: 'chat', icon: 'forum', label: 'Chat' },
 ];
 
 export default function MemberDashboard() {
-    const { user, refreshUser } = useAuth();
-    const [session, setSession] = useState(null);
-    const [queue, setQueue] = useState([]);
-    const [poll, setPoll] = useState(null);
-    const [powerCards, setPowerCards] = useState([]);
+    const { user, powerCards, fetchCards, initRealtimeUser } = useUserStore();
+    const { session, poll, fetchActiveSession, initRealtimeSession } = useSessionStore();
+    const { queue, initQueueRealtime } = useQueueStore();
+
     const [partyDetails, setPartyDetails] = useState(undefined); // undefined = loading, null = not found
-    const [tab, setTab] = useState('home'); // 'home' | 'chat' | 'polls'
+    const [tab, setTab] = useState('home');
 
     const myQueueEntry = queue.find(q => q.member?.id === user?.id);
 
-    const loadAll = useCallback(async () => {
+    const loadParty = useCallback(async () => {
+        if (!user?.party) return;
         try {
-            const [sessRes, queueRes, pollRes, cardsRes] = await Promise.all([
-                getActiveSession(),
-                getQueue(),
-                getActivePoll(),
-                getPowerCards()
-            ]);
-            setSession(sessRes.data.session);
-            setQueue(queueRes.data.queue || []);
-            setPoll(pollRes.data.poll);
-            setPowerCards(cardsRes.data?.cards || []);
-
-            if (user?.party) {
-                try {
-                    const partyRes = await getPartyDetails(user.party);
-                    setPartyDetails(partyRes.data);
-                } catch (err) {
-                    if (err.response?.status === 404) {
-                        setPartyDetails(null);
-                    } else {
-                        console.error('Error fetching party details:', err);
-                        // Default to empty object on network error to allow dashboard load or handle it
-                    }
-                }
+            const res = await getPartyDetails(user.party);
+            setPartyDetails(res.data);
+        } catch (err) {
+            if (err.response?.status === 404) {
+                setPartyDetails(null);
+            } else {
+                console.error(err);
             }
-        } catch (e) { console.error(e); }
-    }, [user]);
+        }
+    }, [user?.party]);
 
     useEffect(() => {
-        loadAll();
-
-        // Realtime subscriptions
-        const sub = supabase
-            .channel('member-dashboard')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, loadAll)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'speaker_queue' }, loadAll)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, loadAll)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, loadAll)
-            // When speeches_count changes in the DB, refresh the logged-in user's profile
-            .on('postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'members', filter: `id=eq.${user?.id}` },
-                refreshUser
-            )
-            .subscribe();
-
-        return () => supabase.removeChannel(sub);
-    }, [loadAll]);
+        initRealtimeSession();
+        initQueueRealtime();
+        initRealtimeUser();
+        fetchCards();
+        loadParty();
+    }, [initRealtimeSession, initQueueRealtime, initRealtimeUser, fetchCards, loadParty]);
 
     const speechesLeft = Math.max(0, 2 - (user?.speeches_count || 0));
 
     /* ── Desktop sidebar nav ─────────────────────────────────────────── */
     const Sidebar = () => (
-        <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-100 min-h-[calc(100vh-64px)] sticky top-[64px] overflow-y-auto">
+        <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-100 min-h-[calc(100vh-64px)] sticky top-[64px] overflow-y-auto transition-transform">
             {/* Profile summary */}
-            <div className="p-5 border-b border-gray-100 relative">
+            <div className="p-5 border-b border-gray-100 relative group">
                 {partyDetails?.logo_url && (
-                    <img src={partyDetails.logo_url} alt="Party Logo" className="absolute top-5 right-5 h-8 w-8 object-contain opacity-50 filter drop-shadow hover:opacity-100 transition-opacity" title={`${user?.party} Logo`} />
+                    <img src={partyDetails.logo_url} alt="Party Logo" className="absolute top-5 right-5 h-8 w-8 object-contain opacity-40 filter drop-shadow hover:opacity-100 transition-opacity" title={`${user?.party} Logo`} />
                 )}
                 <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-lg font-black text-saffron shadow-sm border border-gray-100 shrink-0 overflow-hidden">
+                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-lg font-black text-saffron shadow-sm border border-gray-100 shrink-0 overflow-hidden transform group-hover:scale-105 transition-transform">
                         {partyDetails?.logo_url ? <img src={partyDetails.logo_url} alt="Logo" className="w-full h-full object-cover" /> : user?.name?.charAt(0) || '?'}
                     </div>
                     <div className="min-w-0 pr-6">
@@ -104,12 +78,12 @@ export default function MemberDashboard() {
                     <button
                         key={id}
                         onClick={() => setTab(id)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-gray-50
                             ${tab === id
                                 ? 'bg-saffron/10 text-saffron shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-50 hover:text-neutral-dark'}`}
+                                : 'text-gray-500 hover:text-neutral-dark'}`}
                     >
-                        <span className={`material-symbols-outlined text-xl ${tab === id ? 'fill-[1]' : ''}`}>{icon}</span>
+                        <span className={`material-symbols-outlined text-xl transition-transform ${tab === id ? 'fill-[1] scale-110' : ''}`}>{icon}</span>
                         {label}
                     </button>
                 ))}
@@ -117,20 +91,20 @@ export default function MemberDashboard() {
 
             {/* Quick stats in sidebar */}
             <div className="p-4 border-t border-gray-100">
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3 shadow-inner">
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Speeches Left</p>
                         <div className="flex items-baseline gap-1 mt-1">
                             <span className="text-xl font-black text-neutral-dark">{speechesLeft}</span>
                             <span className="text-sm font-bold text-gray-400">/ 2</span>
                         </div>
-                        <div className="h-1.5 w-full bg-gray-200 rounded-full mt-2 overflow-hidden">
-                            <div className="h-full bg-accent transition-all" style={{ width: `${(speechesLeft / 2) * 100}%` }} />
+                        <div className="h-1.5 w-full bg-gray-200 rounded-full mt-2 overflow-hidden shadow-inner">
+                            <div className="h-full bg-accent transition-all duration-500" style={{ width: `${(speechesLeft / 2) * 100}%` }} />
                         </div>
                     </div>
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Party</p>
-                        <p className="text-lg font-black text-india-green mt-1">{user?.party || '—'}</p>
+                        <p className="text-lg font-black text-india-green mt-1 tracking-tight">{user?.party || '—'}</p>
                     </div>
                 </div>
             </div>
@@ -139,6 +113,10 @@ export default function MemberDashboard() {
 
     return (
         <div className="bg-background-light font-display antialiased text-neutral-dark min-h-screen">
+            {/* Global overlays */}
+            <StageOverlay />
+            <PowerCardAnimation />
+
             {/* Dot pattern bg */}
             <div className="fixed inset-0 pointer-events-none z-[-1] bg-pattern" />
 
@@ -152,24 +130,24 @@ export default function MemberDashboard() {
                 <main className="flex-1 flex flex-col gap-5 p-4 md:p-6 lg:p-8 max-w-md md:max-w-2xl lg:max-w-5xl mx-auto w-full pb-28 lg:pb-8">
 
                     {/* Member card — always visible */}
-                    <section className="bg-white rounded-xl p-5 shadow-soft border-t-4 border-t-saffron border-x border-b border-gray-100 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-bl-full -mr-8 -mt-8" />
+                    <section className="bg-white rounded-xl p-5 shadow-soft border-t-4 border-t-saffron border-x border-b border-gray-100 relative overflow-hidden transition-all hover:shadow-md">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-bl-full -mr-8 -mt-8 transition-transform hover:scale-110" />
                         <div className="flex items-start gap-4 relative z-10">
-                            <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-2xl font-black text-saffron shadow-sm border border-gray-100 shrink-0 overflow-hidden">
+                            <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-saffron/20 to-india-green/20 flex items-center justify-center text-2xl font-black text-saffron shadow-sm border border-gray-100 shrink-0 overflow-hidden transition-transform transform hover:scale-105">
                                 {partyDetails?.logo_url ? <img src={partyDetails.logo_url} alt="Logo" className="w-full h-full object-cover" /> : user?.name?.charAt(0) || '?'}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-xl font-bold text-neutral-dark leading-tight truncate">{user?.name}</h2>
                                 <p className="text-saffron text-sm font-semibold mt-1">Member of Parliament</p>
                                 <div className="flex items-center gap-2 mt-2">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-india-green/10 text-india-green border border-india-green/20 uppercase">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-india-green/10 text-india-green border border-india-green/20 uppercase shadow-sm">
                                         Active
                                     </span>
                                     <span className="text-xs text-gray-500 font-medium">· {user?.constituency || user?.party}</span>
                                 </div>
                             </div>
                         </div>
-                        {/* Stats row — visible on mobile/tablet only (sidebar has these on desktop) */}
+                        {/* Stats row — visible on mobile/tablet only */}
                         <div className="grid grid-cols-2 gap-4 mt-5 pt-4 border-t border-gray-100 lg:hidden">
                             <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Speeches Left</p>
@@ -177,8 +155,8 @@ export default function MemberDashboard() {
                                     <span className="text-2xl font-black text-neutral-dark">{speechesLeft}</span>
                                     <span className="text-sm font-bold text-gray-400">/ 2</span>
                                 </div>
-                                <div className="h-1.5 w-full bg-gray-100 rounded-full mt-2 overflow-hidden">
-                                    <div className="h-full bg-accent transition-all" style={{ width: `${(speechesLeft / 2) * 100}%` }} />
+                                <div className="h-1.5 w-full bg-gray-100 rounded-full mt-2 overflow-hidden shadow-inner">
+                                    <div className="h-full bg-accent transition-all duration-500" style={{ width: `${(speechesLeft / 2) * 100}%` }} />
                                 </div>
                             </div>
                             <div>
@@ -196,8 +174,8 @@ export default function MemberDashboard() {
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Party Members</p>
                                 <div className="flex flex-wrap gap-2">
                                     {partyDetails.members_data.map((m, i) => (
-                                        <div key={i} className="px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-2">
-                                            <div className="h-5 w-5 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-black text-neutral-dark">
+                                        <div key={i} className="px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow">
+                                            <div className="h-5 w-5 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-black text-neutral-dark cursor-default">
                                                 {m.name.charAt(0)}
                                             </div>
                                             <div>
@@ -216,27 +194,27 @@ export default function MemberDashboard() {
                         <>
                             {/* Action row — 2 column on desktop */}
                             <section className="grid grid-cols-12 gap-4">
-                                <RaiseHandButton queueEntry={myQueueEntry} onUpdate={loadAll} />
+                                <RaiseHandButton queueEntry={myQueueEntry} onUpdate={fetchActiveSession} />
                                 <button
                                     onClick={() => setTab('polls')}
-                                    className="col-span-4 group relative overflow-hidden rounded-xl bg-accent text-neutral-dark p-5 flex flex-col justify-between h-32 transition-all shadow-lg shadow-accent/20 active:scale-[0.98]"
+                                    className="col-span-4 group relative overflow-hidden rounded-xl bg-accent text-neutral-dark p-5 flex flex-col justify-between h-32 transition-all shadow-lg shadow-accent/20 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                                 >
-                                    <div className="absolute right-0 bottom-0 opacity-20 translate-x-2 translate-y-2">
+                                    <div className="absolute right-0 bottom-0 opacity-20 translate-x-2 translate-y-2 transition-transform group-hover:scale-110">
                                         <span className="material-symbols-outlined text-[100px]">monitoring</span>
                                     </div>
                                     <span className="material-symbols-outlined text-3xl">monitoring</span>
-                                    <span className="text-sm font-black tracking-tight text-left leading-tight uppercase">Polls</span>
+                                    <span className="text-sm font-black tracking-tight text-left leading-tight uppercase relative z-10">Polls</span>
                                 </button>
                             </section>
 
                             {/* Power Cards display */}
                             {powerCards.length > 0 && (
-                                <PowerCards cards={powerCards} session={session} onUpdate={loadAll} />
+                                <PowerCards cards={powerCards} session={session} onUpdate={fetchActiveSession} />
                             )}
 
                             {/* My queue position banner */}
                             {myQueueEntry && (
-                                <div className="bg-accent/10 border border-accent/30 rounded-xl p-4 flex items-center gap-3">
+                                <div className="bg-accent/10 border border-accent/30 rounded-xl p-4 flex items-center gap-3 shadow-sm transform transition-all hover:scale-[1.01] hover:shadow-md animate-in fade-in slide-in-from-top-2">
                                     <div className="h-9 w-9 rounded-full bg-accent text-neutral-dark flex items-center justify-center text-[10px] font-black ring-2 ring-white shadow-sm">YOU</div>
                                     <div className="flex-1">
                                         <p className="text-sm font-black text-neutral-dark">
@@ -247,36 +225,40 @@ export default function MemberDashboard() {
                                 </div>
                             )}
 
-                            <FloorStatus session={session} queue={queue} />
+                            <FloorStatus queue={queue} />
                         </>
                     )}
 
-                    {tab === 'chat' && <ChatPanel sessionId={session?.id} />}
-
                     {tab === 'polls' && (
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {poll ? (
-                                <PollCard poll={poll} onVoted={loadAll} />
+                                <PollCard poll={poll} onVoted={fetchActiveSession} />
                             ) : (
-                                <div className="bg-white rounded-xl p-8 text-center border border-gray-100 shadow-soft">
-                                    <span className="material-symbols-outlined text-5xl text-gray-200">bar_chart</span>
-                                    <p className="text-gray-400 mt-3 font-medium">No active poll right now.</p>
+                                <div className="bg-white rounded-xl p-8 text-center border border-dashed border-gray-200 shadow-soft hover:bg-gray-50/50 transition-colors">
+                                    <span className="material-symbols-outlined text-5xl text-gray-200 block mb-3">bar_chart</span>
+                                    <p className="text-gray-400 font-medium">No active poll right now.</p>
                                     <p className="text-[11px] text-gray-300 mt-1">The moderator will create one soon.</p>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {tab === 'chat' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <ChatPanel sessionId={session?.id} />
                         </div>
                     )}
                 </main>
             </div>
 
             {/* Bottom navigation — mobile/tablet only */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 pb-6 pt-2 z-50 lg:hidden">
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 pb-6 pt-2 z-50 lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                 <div className="flex justify-around items-center max-w-md mx-auto">
                     {TABS.map(({ id, icon, label }) => (
                         <button
                             key={id}
                             onClick={() => setTab(id)}
-                            className={`flex flex-col items-center gap-1 transition-colors ${tab === id ? 'text-saffron' : 'text-gray-400'}`}
+                            className={`flex flex-col items-center gap-1 transition-all ${tab === id ? 'text-saffron scale-110' : 'text-gray-400 hover:text-neutral-dark'}`}
                         >
                             <span className={`material-symbols-outlined text-[28px] ${tab === id ? 'fill-[1]' : ''}`}>{icon}</span>
                             <span className="text-[10px] font-bold uppercase tracking-tighter">{label}</span>
@@ -287,7 +269,7 @@ export default function MemberDashboard() {
 
             {/* Mandatory Party Details Form Popup */}
             {partyDetails === null && (
-                <PartyDetailsForm user={user} onComplete={loadAll} />
+                <PartyDetailsForm user={user} onComplete={loadParty} />
             )}
         </div>
     );

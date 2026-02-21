@@ -13,6 +13,7 @@ drop table if exists chat_messages  cascade;
 drop table if exists speaker_queue  cascade;
 drop table if exists sessions       cascade;
 drop table if exists members        cascade;
+drop table if exists party_details  cascade;
 
 -- Note: DROP TABLE CASCADE above automatically removes tables from supabase_realtime publication
 
@@ -127,6 +128,16 @@ create table power_cards (
 );
 create index cards_session_member on power_cards (session_id, member_id, is_used);
 
+-- PARTY DETAILS
+create table party_details (
+  id             uuid primary key default gen_random_uuid(),
+  party          text unique not null,
+  total_members  int not null default 0,
+  logo_url       text not null,
+  members_data   jsonb not null default '[]',
+  created_at     timestamptz default now()
+);
+
 -- ─── STEP 4: Row Level Security ────────────────────────────
 -- RLS enabled but open for anon reads so Realtime works on client
 -- All writes go through server (Express + service_role key)
@@ -140,6 +151,7 @@ alter table poll_votes     enable row level security;
 alter table team_points    enable row level security;
 alter table speaker_grades enable row level security;
 alter table power_cards    enable row level security;
+alter table party_details  enable row level security;
 
 -- Public read policies (anon + authenticated)
 create policy "read_members"      on members        for select using (true);
@@ -151,6 +163,7 @@ create policy "read_poll_votes"   on poll_votes     for select using (true);
 create policy "read_team_points"  on team_points    for select using (true);
 create policy "read_speaker_grades" on speaker_grades for select using (true);
 create policy "read_power_cards"  on power_cards    for select using (true);
+create policy "read_party_details" on party_details  for select using (true);
 
 -- DEV: Full write access for anon (replace with service_role in production)
 create policy "write_members"      on members        for all using (true) with check (true);
@@ -162,6 +175,7 @@ create policy "write_poll_votes"   on poll_votes     for all using (true) with c
 create policy "write_team_points"  on team_points    for all using (true) with check (true);
 create policy "write_speaker_grades" on speaker_grades for all using (true) with check (true);
 create policy "write_power_cards"  on power_cards    for all using (true) with check (true);
+create policy "write_party_details" on party_details  for all using (true) with check (true);
 
 
 -- ─── STEP 5: Enable Realtime ───────────────────────────────

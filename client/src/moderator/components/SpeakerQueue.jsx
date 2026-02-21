@@ -1,43 +1,12 @@
-import { approveSpeaker, revokeMic, markDone } from '../../shared/services/api';
-import { useState, useEffect } from 'react';
+import useQueueStore from '../../store/useQueueStore';
+import useUserStore from '../../store/useUserStore';
+import useSessionStore from '../../store/useSessionStore';
 
 const DONE_UNLOCK_SECONDS = 60; // 1 minute
 
-// ── Live elapsed-time hook ────────────────────────────────────────────────────
-function useElapsedSeconds(startedAt) {
-    const [elapsed, setElapsed] = useState(0);
-
-    useEffect(() => {
-        if (!startedAt) { setElapsed(0); return; }
-
-        const tick = () => {
-            const secs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-            setElapsed(Math.max(0, secs));
-        };
-        tick(); // immediate first tick
-        const id = setInterval(tick, 1000);
-        return () => clearInterval(id);
-    }, [startedAt]);
-
-    return elapsed;
-}
-
-// ── Speaking Timer display ────────────────────────────────────────────────────
-function SpeakingTimer({ startedAt }) {
-    const elapsed = useElapsedSeconds(startedAt);
-    const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    const secs = String(elapsed % 60).padStart(2, '0');
-    return (
-        <span className="font-mono text-xs font-bold text-saffron tracking-wider">
-            {mins}:{secs}
-        </span>
-    );
-}
-
 // ── Done-button with unlock countdown ────────────────────────────────────────
-function DoneButton({ startedAt, onClick, loading }) {
-    const elapsed = useElapsedSeconds(startedAt);
-    const remaining = Math.max(0, DONE_UNLOCK_SECONDS - elapsed);
+function DoneButton({ timer, onClick, loading }) {
+    const remaining = Math.max(0, DONE_UNLOCK_SECONDS - timer);
     const unlocked = remaining === 0;
 
     return (
@@ -46,7 +15,7 @@ function DoneButton({ startedAt, onClick, loading }) {
             disabled={!unlocked || loading}
             className={`flex-1 font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all text-sm
                 ${unlocked
-                    ? 'bg-india-green hover:bg-india-green/90 text-white shadow-sm'
+                    ? 'bg-india-green hover:bg-india-green/90 text-white shadow-sm hover:shadow active:scale-95'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
         >
@@ -56,27 +25,39 @@ function DoneButton({ startedAt, onClick, loading }) {
     );
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
-export default function SpeakerQueue({ queue, currentSpeaker, onUpdate, userRole }) {
-    const [loading, setLoading] = useState(null);
-    const isJudge = userRole === 'judge';
+export default function SpeakerQueue() {
+    const {
+        queue,
+        approveSpeaker,
+        revokeSpeaker,
+        markDone,
+        isQueueLoading
+    } = useQueueStore();
+
+    const { session, timer, isTimerRunning } = useSessionStore();
+    const { role } = useUserStore();
+
+    const currentSpeaker = session?.current_speaker;
+    const isJudge = role === 'judge';
 
     async function handle(action, id = null) {
-        setLoading(action);
-        try {
-            if (action === 'approve') await approveSpeaker(id);
-            else if (action === 'revoke') await revokeMic();
-            else if (action === 'done') await markDone();
-            onUpdate();
-        } catch (e) { console.error(e); }
-        finally { setLoading(null); }
+        if (action === 'approve') {
+            if (currentSpeaker) {
+                await revokeSpeaker();
+            }
+            await approveSpeaker(id);
+        }
+        else if (action === 'revoke') await revokeSpeaker();
+        else if (action === 'done') await markDone();
     }
 
     const waiting = (queue || []).filter(q => q.status === 'waiting');
 
-    // Find the queue entry for the current speaker to get speaking_started_at
-    const speakingEntry = (queue || []).find(q => q.status === 'speaking');
-    const startedAt = speakingEntry?.speaking_started_at ?? null;
+    const fmtTimer = () => {
+        const mins = String(Math.floor(timer / 60)).padStart(2, '0');
+        const secs = String(timer % 60).padStart(2, '0');
+        return `${mins}:${secs}`;
+    };
 
     return (
         <div className="flex flex-col gap-4">
@@ -84,9 +65,12 @@ export default function SpeakerQueue({ queue, currentSpeaker, onUpdate, userRole
             <section className="space-y-3">
                 <h2 className="text-lg font-bold text-neutral-dark">Currently Speaking</h2>
                 {currentSpeaker ? (
-                    <div className="bg-white rounded-xl shadow-sm border-2 border-saffron overflow-hidden">
-                        <div className="p-4 flex gap-4">
-                            <div className="h-16 w-16 rounded-lg bg-saffron/20 flex items-center justify-center text-saffron text-2xl font-black shrink-0">
+                    <div className="bg-white rounded-xl shadow-soft hover:shadow-md transition-shadow border border-gray-100 overflow-hidden relative">
+                        {/* Status bar */}
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-saffron to-accent"></div>
+
+                        <div className="p-4 flex gap-4 pt-5">
+                            <div className="h-16 w-16 rounded-xl bg-saffron/10 flex items-center justify-center text-saffron text-2xl font-black shrink-0 border border-saffron/20 shadow-sm">
                                 {currentSpeaker.name?.charAt(0) || '?'}
                             </div>
                             <div className="flex flex-col justify-between py-1 flex-1">
@@ -95,34 +79,37 @@ export default function SpeakerQueue({ queue, currentSpeaker, onUpdate, userRole
                                     <p className="text-xs text-gray-500 mt-0.5">{currentSpeaker.party} · {currentSpeaker.constituency}</p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="text-[10px] font-bold text-saffron tracking-widest uppercase animate-pulse">MIC ON</span>
-                                    {startedAt && (
+                                    <span className="text-[10px] font-bold text-saffron tracking-widest uppercase animate-pulse flex items-center gap-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-saffron"></div>
+                                        MIC ON
+                                    </span>
+                                    {isTimerRunning && (
                                         <>
                                             <span className="text-gray-300">·</span>
-                                            <SpeakingTimer startedAt={startedAt} />
+                                            <span className="font-mono text-xs font-bold text-saffron tracking-wider">
+                                                {fmtTimer()}
+                                            </span>
                                         </>
                                     )}
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-saffron/5 p-3 flex gap-2">
+                        <div className="bg-gray-50/80 border-t border-gray-100 p-3 flex gap-2">
                             {/* Judges cannot mark done or revoke, only Moderators */}
                             {!isJudge ? (
                                 <>
-                                    {/* Done — unlocks after 1 minute */}
                                     <DoneButton
-                                        startedAt={startedAt}
+                                        timer={timer}
                                         onClick={() => handle('done')}
-                                        loading={loading === 'done'}
+                                        loading={isQueueLoading}
                                     />
-                                    {/* Revoke — always available */}
                                     <button
                                         onClick={() => handle('revoke')}
-                                        disabled={loading === 'revoke'}
-                                        className="flex-1 bg-alert-red hover:bg-red-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-sm"
+                                        disabled={isQueueLoading}
+                                        className="flex-1 bg-white border border-alert-red hover:bg-alert-red text-alert-red hover:text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all text-sm shadow-sm active:scale-95"
                                     >
                                         <span className="material-symbols-outlined text-base">mic_off</span>
-                                        {loading === 'revoke' ? 'Revoking...' : 'REVOKE MIC'}
+                                        REVOKE MIC
                                     </button>
                                 </>
                             ) : (
@@ -133,9 +120,9 @@ export default function SpeakerQueue({ queue, currentSpeaker, onUpdate, userRole
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl p-6 text-center border border-gray-100 shadow-soft">
-                        <span className="material-symbols-outlined text-4xl text-gray-200">mic_none</span>
-                        <p className="text-gray-400 mt-2 text-sm">No one is speaking. Approve someone below.</p>
+                    <div className="bg-white rounded-xl p-8 text-center border border-dashed border-gray-200 shadow-sm transition-all hover:bg-gray-50/50">
+                        <span className="material-symbols-outlined text-4xl text-gray-300 mb-2 block">mic_none</span>
+                        <p className="text-gray-400 text-sm font-medium">No one is speaking. Approve someone below.</p>
                     </div>
                 )}
             </section>
@@ -144,31 +131,33 @@ export default function SpeakerQueue({ queue, currentSpeaker, onUpdate, userRole
             <section className="space-y-3">
                 <div className="flex justify-between items-center">
                     <h2 className="text-lg font-bold text-neutral-dark">Speaker Queue</h2>
-                    <span className="text-xs font-semibold text-saffron">{waiting.length} waiting</span>
+                    <span className="text-[10px] py-1 px-2 rounded-full bg-saffron/10 font-bold text-saffron border border-saffron/20">{waiting.length} waiting</span>
                 </div>
                 <div className="flex flex-col gap-2">
                     {waiting.length === 0 && (
-                        <p className="text-center text-gray-300 text-sm italic py-6">Queue is empty</p>
+                        <div className="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm italic shadow-sm hover:bg-gray-50 transition-colors">
+                            The queue is currently empty
+                        </div>
                     )}
                     {waiting.map((entry, idx) => (
-                        <div key={entry.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 shadow-soft">
+                        <div key={entry.id} className="group flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-soft hover:shadow-md transition-all">
                             <div className="flex items-center gap-3">
                                 <span className="text-xs font-bold text-gray-400 w-5 text-center">{idx + 1}</span>
-                                <div className="h-10 w-10 rounded-full bg-saffron/10 flex items-center justify-center text-saffron font-bold text-sm">
+                                <div className="h-10 w-10 rounded-full bg-saffron/10 border border-saffron/20 flex items-center justify-center text-saffron font-bold text-sm shadow-sm">
                                     {entry.member?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-neutral-dark">{entry.member?.name}</p>
+                                    <p className="text-sm font-bold text-neutral-dark group-hover:text-saffron transition-colors">{entry.member?.name}</p>
                                     <p className="text-[10px] text-gray-500 uppercase">{entry.member?.party} · {entry.member?.speeches_count || 0} speech{entry.member?.speeches_count !== 1 ? 'es' : ''}</p>
                                 </div>
                             </div>
                             {!isJudge && (
                                 <button
                                     onClick={() => handle('approve', entry.id)}
-                                    disabled={!!currentSpeaker || loading === 'approve'}
-                                    className="h-9 px-3 rounded-lg bg-india-green/10 text-india-green font-bold text-xs flex items-center gap-1 disabled:opacity-40 hover:bg-india-green hover:text-white transition-colors"
+                                    disabled={isQueueLoading}
+                                    className="h-9 px-4 rounded-lg bg-india-green/10 text-india-green font-bold text-xs flex items-center gap-1.5 disabled:opacity-40 hover:bg-india-green hover:text-white transition-all hover:shadow-md active:scale-95 border border-india-green/20 hover:border-transparent"
                                 >
-                                    <span className="material-symbols-outlined text-base">check</span>
+                                    <span className="material-symbols-outlined text-base">check_circle</span>
                                     Approve
                                 </button>
                             )}

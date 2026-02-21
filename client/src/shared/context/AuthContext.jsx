@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { login as apiLogin, getMe } from '../services/api';
+import useUserStore from '../../store/useUserStore';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,8 @@ export function AuthProvider({ children }) {
             localStorage.setItem('abhimat_token', data.token);
             localStorage.setItem('abhimat_user', JSON.stringify(data.user));
             setUser(data.user);
+            // Crucial: keep Zustand store in sync instantly
+            useUserStore.getState().setUser(data.user, data.token);
             return data.user;
         } catch (err) {
             const msg = err.response?.data?.error || 'Login failed';
@@ -32,6 +35,8 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('abhimat_token');
         localStorage.removeItem('abhimat_user');
         setUser(null);
+        // Force sync Zustand store
+        useUserStore.getState().logout();
     }
 
     // Re-fetch fresh user data from server (e.g. after speeches_count changes)
@@ -40,6 +45,7 @@ export function AuthProvider({ children }) {
             const { data } = await getMe();
             setUser(data.user);
             localStorage.setItem('abhimat_user', JSON.stringify(data.user));
+            useUserStore.getState().setUser(data.user);
         } catch {
             logout();
         }

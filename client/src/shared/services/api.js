@@ -47,6 +47,7 @@ export const markDone = () => api.patch('/speaker/done');
 // Chat
 export const getChat = (page = 0) => api.get(`/chat?page=${page}`);
 export const postMessage = (content) => api.post('/chat', { content });
+export const clearChat = () => api.delete('/chat');
 
 // Polls
 export const createPoll = (question, options) => api.post('/polls', { question, options });

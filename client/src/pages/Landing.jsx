@@ -30,7 +30,7 @@ function LoginForm({ compact = false }) {
         e.preventDefault();
         try {
             const user = await login(memberId, password);
-            navigate(user.role === 'moderator' ? '/moderator' : '/member');
+            navigate(user.role === 'moderator' || user.role === 'judge' ? '/moderator' : '/member');
         } catch { }
     }
 

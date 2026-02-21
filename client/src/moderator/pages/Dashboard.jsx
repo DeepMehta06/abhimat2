@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../shared/context/AuthContext';
-import { getActiveSession, getQueue, getActivePoll, getLeaderboard } from '../../shared/services/api';
-import { supabase } from '../../shared/services/supabase';
+import { useState, useEffect } from 'react';
+import useUserStore from '../../store/useUserStore';
+import useSessionStore from '../../store/useSessionStore';
+import useQueueStore from '../../store/useQueueStore';
 import TopBar from '../../shared/components/TopBar';
 import FloorStatus from '../../shared/components/FloorStatus';
 import SpeakerQueue from '../components/SpeakerQueue';
@@ -9,7 +9,8 @@ import PollCreator from '../components/PollCreator';
 import Leaderboard from '../components/Leaderboard';
 import SpeakerGrader from '../components/SpeakerGrader';
 import ChatPanel from '../../member/components/ChatPanel';
-import { updateSessionStage } from '../../shared/services/api';
+import StageOverlay from '../../components/floor/StageOverlay';
+import PowerCardAnimation from '../../components/floor/PowerCardAnimation';
 
 const PARTIES = ['BJP', 'INC', 'AAP', 'TMC', 'SP', 'BSP'];
 
@@ -20,42 +21,24 @@ const TABS = [
 ];
 
 export default function ModeratorDashboard() {
-    const { user } = useAuth();
-    const [session, setSession] = useState(null);
-    const [queue, setQueue] = useState([]);
-    const [poll, setPoll] = useState(null);
-    const [leaderboard, setLeaderboard] = useState([]);
-    const [tab, setTab] = useState('session'); // 'session' | 'polls' | 'stats'
+    const { user, role } = useUserStore();
+    const {
+        session,
+        poll,
+        leaderboard,
+        updateStage,
+        initRealtimeSession,
+        fetchActiveSession
+    } = useSessionStore();
+    const { queue, initQueueRealtime } = useQueueStore();
 
-    const loadAll = useCallback(async () => {
-        try {
-            const [sessRes, queueRes, pollRes, pointsRes] = await Promise.all([
-                getActiveSession(),
-                getQueue(),
-                getActivePoll(),
-                getLeaderboard(),
-            ]);
-            setSession(sessRes.data.session);
-            setQueue(queueRes.data.queue || []);
-            setPoll(pollRes.data.poll);
-            setLeaderboard(pointsRes.data.leaderboard || []);
-        } catch (e) { console.error(e); }
-    }, []);
+    const [tab, setTab] = useState('session');
 
+    // Initialize Realtime Stores on Mount
     useEffect(() => {
-        loadAll();
-
-        const sub = supabase
-            .channel('mod-dashboard')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, loadAll)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'speaker_queue' }, loadAll)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, loadAll)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, loadAll)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'team_points' }, loadAll)
-            .subscribe();
-
-        return () => supabase.removeChannel(sub);
-    }, [loadAll]);
+        initRealtimeSession();
+        initQueueRealtime();
+    }, [initRealtimeSession, initQueueRealtime]);
 
     const partyBreakdown = PARTIES.map(p => ({
         party: p,
@@ -66,17 +49,18 @@ export default function ModeratorDashboard() {
 
     /* ── Desktop sidebar nav ─────────────────────────────────────────── */
     const Sidebar = () => (
-        <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-100 min-h-[calc(100vh-64px)] sticky top-[64px] overflow-y-auto">
+        <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-100 min-h-[calc(100vh-64px)] sticky top-[64px] overflow-y-auto z-10 transition-transform">
             {/* Role badge */}
-            <div className="p-5 border-b border-gray-100">
+            <div className="p-5 border-b border-gray-100 group relative">
+                <div className="absolute right-0 top-0 w-16 h-16 bg-saffron/5 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
                 <div className="flex items-center gap-3">
-                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center text-lg font-black text-white shadow-md ${user?.role === 'judge' ? 'bg-gradient-to-br from-ashoka-blue to-purple-600' : 'bg-gradient-to-br from-saffron via-accent to-india-green'}`}>
-                        <span className="material-symbols-outlined text-xl">{user?.role === 'judge' ? 'gavel' : 'shield_person'}</span>
+                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center text-lg font-black text-white shadow-md transition-transform group-hover:scale-105 ${role === 'judge' ? 'bg-gradient-to-br from-ashoka-blue to-purple-600' : 'bg-gradient-to-br from-saffron via-accent to-india-green'}`}>
+                        <span className="material-symbols-outlined text-xl">{role === 'judge' ? 'gavel' : 'shield_person'}</span>
                     </div>
                     <div className="min-w-0">
                         <p className="text-sm font-bold text-neutral-dark truncate">{user?.name}</p>
-                        <p className={`text-[10px] font-semibold uppercase ${user?.role === 'judge' ? 'text-ashoka-blue' : 'text-saffron'}`}>
-                            {user?.role === 'judge' ? 'Judge' : 'Moderator'}
+                        <p className={`text-[10px] font-semibold uppercase ${role === 'judge' ? 'text-ashoka-blue' : 'text-saffron'}`}>
+                            {role === 'judge' ? 'Judge' : 'Moderator'}
                         </p>
                     </div>
                 </div>
@@ -88,12 +72,12 @@ export default function ModeratorDashboard() {
                     <button
                         key={id}
                         onClick={() => setTab(id)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all group
                             ${tab === id
                                 ? 'bg-saffron/10 text-saffron shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-50 hover:text-neutral-dark'}`}
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-neutral-dark hover:translate-x-1'}`}
                     >
-                        <span className={`material-symbols-outlined text-xl ${tab === id ? 'fill-[1]' : ''}`}>{icon}</span>
+                        <span className={`material-symbols-outlined text-xl transition-transform ${tab === id ? 'fill-[1] scale-110' : 'group-hover:scale-110'}`}>{icon}</span>
                         {label}
                     </button>
                 ))}
@@ -101,14 +85,22 @@ export default function ModeratorDashboard() {
 
             {/* Quick queue summary in sidebar */}
             <div className="p-4 border-t border-gray-100">
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3 hover:bg-gray-100 transition-colors shadow-inner">
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Queue</p>
-                        <p className="text-xl font-black text-neutral-dark mt-1">{totalInQueue} <span className="text-sm font-bold text-gray-400">waiting</span></p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">group</span>
+                            Queue Load
+                        </p>
+                        <p className="text-xl font-black text-neutral-dark mt-1 flex items-baseline gap-1">
+                            {totalInQueue} <span className="text-sm font-bold text-gray-400">waiting</span>
+                        </p>
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Session</p>
-                        <p className="text-sm font-bold text-india-green mt-1 truncate">{session?.title || 'No active session'}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">record_voice_over</span>
+                            Active Stage
+                        </p>
+                        <p className="text-sm font-bold text-india-green mt-1 truncate capitalize">{session?.stage.replace('_', ' ') || 'No session'}</p>
                     </div>
                 </div>
             </div>
@@ -116,7 +108,9 @@ export default function ModeratorDashboard() {
     );
 
     return (
-        <div className="bg-background-light font-display antialiased text-neutral-dark min-h-screen">
+        <div className="bg-background-light font-display antialiased text-neutral-dark min-h-screen relative">
+            <StageOverlay />
+            <PowerCardAnimation />
             <TopBar session={session} liveCount={queue.length} />
 
             <div className="flex">
@@ -124,29 +118,34 @@ export default function ModeratorDashboard() {
                 <Sidebar />
 
                 {/* Main content */}
-                <main className="flex-1 flex flex-col gap-5 p-4 md:p-6 lg:p-8 max-w-md md:max-w-2xl lg:max-w-5xl mx-auto w-full pb-28 lg:pb-8">
+                <main className="flex-1 flex flex-col gap-5 p-4 md:p-6 lg:p-8 max-w-md md:max-w-2xl lg:max-w-6xl mx-auto w-full pb-28 lg:pb-8">
 
                     {/* Party representation bar — always visible */}
                     {partyBreakdown.length > 0 && (
-                        <section className="bg-white rounded-xl p-4 shadow-soft border border-gray-100 space-y-2">
+                        <section className="bg-white rounded-xl p-4 shadow-soft hover:shadow-md transition-shadow border border-gray-100 space-y-2 animate-in fade-in slide-in-from-top-2">
                             <div className="flex justify-between items-end">
-                                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Party Representation</h2>
-                                <span className="text-xs font-medium text-gray-400">{totalInQueue} in queue</span>
+                                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[14px]">pie_chart</span>
+                                    House Representation
+                                </h2>
+                                <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                    {totalInQueue} queued
+                                </span>
                             </div>
-                            <div className="flex h-3 w-full rounded-full overflow-hidden bg-gray-100">
+                            <div className="flex h-3 w-full rounded-full overflow-hidden bg-gray-100 shadow-inner">
                                 {partyBreakdown.map((p, i) => {
                                     const pct = Math.round((p.count / totalInQueue) * 100);
                                     const colors = ['bg-saffron', 'bg-india-green', 'bg-ashoka-blue', 'bg-amber-400', 'bg-purple-500', 'bg-pink-400'];
-                                    return <div key={p.party} className={`h-full ${colors[i % colors.length]}`} style={{ width: `${pct}%` }} title={p.party} />;
+                                    return <div key={p.party} className={`h-full ${colors[i % colors.length]} transition-all duration-1000 ease-out`} style={{ width: `${pct}%` }} title={p.party} />;
                                 })}
                             </div>
                             <div className="flex flex-wrap gap-x-3 gap-y-1">
                                 {partyBreakdown.map((p, i) => {
                                     const colors = ['bg-saffron', 'bg-india-green', 'bg-ashoka-blue', 'bg-amber-400', 'bg-purple-500', 'bg-pink-400'];
                                     return (
-                                        <div key={p.party} className="flex items-center gap-1 text-[10px] font-medium text-gray-500">
-                                            <span className={`w-2 h-2 rounded-full ${colors[i % colors.length]}`} />
-                                            {p.party} ({p.count})
+                                        <div key={p.party} className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 hover:text-neutral-dark transition-colors cursor-default">
+                                            <span className={`w-2.5 h-2.5 rounded-sm shadow-sm ${colors[i % colors.length]}`} />
+                                            {p.party} <span className="opacity-60">({p.count})</span>
                                         </div>
                                     );
                                 })}
@@ -156,27 +155,22 @@ export default function ModeratorDashboard() {
 
                     {/* Tab content */}
                     {tab === 'session' && (
-                        <div className="space-y-5">
+                        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {/* Stage Controls: Only Moderators can change the stage */}
-                            {session && user?.role === 'moderator' && (
-                                <section className="bg-white rounded-xl p-4 shadow-soft border border-gray-100 flex items-center justify-between">
+                            {session && role === 'moderator' && (
+                                <section className="bg-white rounded-xl p-4 shadow-soft border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all hover:shadow-md relative overflow-hidden group">
+                                    <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-saffron/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                     <div>
                                         <h2 className="text-sm font-bold text-neutral-dark flex items-center gap-2">
-                                            <span className="material-symbols-outlined text-saffron">auto_awesome_motion</span>
-                                            Event Stage
+                                            <span className="material-symbols-outlined text-saffron bg-saffron/10 p-1.5 rounded-lg">auto_awesome_motion</span>
+                                            Event Stage Governance
                                         </h2>
-                                        <p className="text-xs text-gray-500 font-medium">Controls the allowed power cards.</p>
+                                        <p className="text-xs text-gray-500 font-medium mt-1">Updates global allowed power cards and timer rules.</p>
                                     </div>
                                     <select
-                                        className="bg-gray-50 text-sm font-bold text-neutral-dark border-0 rounded-lg py-2 px-4 outline-none focus:ring-2 focus:ring-saffron cursor-pointer"
+                                        className="bg-gray-50 hover:bg-white text-sm font-bold text-neutral-dark border border-gray-200 rounded-lg py-2.5 px-4 outline-none focus:ring-2 focus:ring-saffron cursor-pointer shadow-sm transition-all focus:shadow-md max-w-[200px]"
                                         value={session.stage || 'first_bill'}
-                                        onChange={async (e) => {
-                                            try {
-                                                await updateSessionStage(session.id, e.target.value);
-                                            } catch (err) {
-                                                alert('Failed to update stage');
-                                            }
-                                        }}
+                                        onChange={async (e) => await updateStage(e.target.value)}
                                     >
                                         <option value="first_bill">Stage 1: First Bill</option>
                                         <option value="one_on_one">Stage 2: One on One</option>
@@ -184,35 +178,37 @@ export default function ModeratorDashboard() {
                                     </select>
                                 </section>
                             )}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                <SpeakerQueue queue={queue} currentSpeaker={session?.current_speaker} onUpdate={loadAll} userRole={user?.role} />
-                                <FloorStatus session={session} queue={queue} />
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                                <SpeakerQueue />
+                                <FloorStatus queue={queue} />
                             </div>
                         </div>
                     )}
 
                     {tab === 'polls' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 h-full min-h-[500px]">
-                            <div className="flex flex-col overflow-hidden max-h-[70vh]">
-                                <ChatPanel session={session} />
-                            </div>
-                            <div className="overflow-y-auto">
-                                {user?.role === 'moderator' ? (
-                                    <PollCreator activePoll={poll} parties={PARTIES} onUpdate={loadAll} />
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex flex-col gap-4">
+                                {role === 'moderator' ? (
+                                    <PollCreator activePoll={poll} parties={PARTIES} onUpdate={fetchActiveSession} />
                                 ) : (
-                                    <div className="bg-white rounded-xl p-8 text-center border border-gray-100 shadow-soft">
+                                    <div className="bg-white rounded-xl p-8 text-center border border-dashed border-gray-200 shadow-soft hover:bg-gray-50/50 transition-colors h-full flex flex-col items-center justify-center">
                                         <span className="material-symbols-outlined text-5xl text-gray-200">poll</span>
                                         <p className="text-gray-500 font-bold mt-4">Polls are managed by the Moderator.</p>
-                                        <p className="text-sm text-gray-400 mt-2">Any active poll points will automatically calculate your bonus grading score constraints.</p>
+                                        <p className="text-sm text-gray-400 mt-2 max-w-xs text-center">Any active poll points will automatically calculate your bonus grading score constraints.</p>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Re-integrated Chat Panel for Moderator side */}
+                            <div className="flex flex-col gap-4">
+                                <ChatPanel sessionId={session?.id} />
                             </div>
                         </div>
                     )}
 
                     {tab === 'stats' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                            <SpeakerGrader session={session} activePoll={poll} onGradeSubmitted={loadAll} />
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <SpeakerGrader session={session} activePoll={poll} onGradeSubmitted={fetchActiveSession} />
                             <Leaderboard leaderboard={leaderboard} />
                         </div>
                     )}
@@ -220,13 +216,13 @@ export default function ModeratorDashboard() {
             </div>
 
             {/* Bottom nav — mobile/tablet only */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 pb-6 pt-2 z-50 lg:hidden">
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 pb-6 pt-2 z-50 lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                 <div className="flex justify-around items-center max-w-md mx-auto">
                     {TABS.map(({ id, icon, label }) => (
                         <button
                             key={id}
                             onClick={() => setTab(id)}
-                            className={`flex flex-col items-center gap-1 transition-colors ${tab === id ? 'text-saffron' : 'text-gray-400'}`}
+                            className={`flex flex-col items-center gap-1 transition-all ${tab === id ? 'text-saffron scale-110' : 'text-gray-400 hover:text-neutral-dark'}`}
                         >
                             <span className={`material-symbols-outlined text-[28px] ${tab === id ? 'fill-[1]' : ''}`}>{icon}</span>
                             <span className="text-[10px] font-bold uppercase tracking-tighter">{label}</span>
