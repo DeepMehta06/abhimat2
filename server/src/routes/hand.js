@@ -30,6 +30,12 @@ router.post('/raise', authMiddleware, async (req, res) => {
 
     // Priority score: fewer speeches = lower number = higher priority
     const speechCount = req.user.speeches_count || 0;
+
+    // Check if user has exhausted speeches (max 2 chances)
+    if (speechCount >= 2) {
+        return res.status(403).json({ error: 'You have no chances left to speak' });
+    }
+
     const priorityScore = speechCount * 10;
 
     const { data, error } = await supabase

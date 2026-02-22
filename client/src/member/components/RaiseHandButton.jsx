@@ -6,8 +6,11 @@ export default function RaiseHandButton({ queueEntry, onUpdate }) {
 
     const isWaiting = queueEntry?.status === 'waiting';
     const isSpeaking = queueEntry?.status === 'speaking';
+    const speechesLeft = Math.max(0, 2 - (queueEntry?.member?.speeches_count || 0));
+    const noChancesLeft = speechesLeft === 0;
 
     async function handleRaise() {
+        if (noChancesLeft) return;
         setLoading(true);
         try {
             await raiseHand();
@@ -63,17 +66,22 @@ export default function RaiseHandButton({ queueEntry, onUpdate }) {
     return (
         <button
             onClick={handleRaise}
-            disabled={loading}
-            className="col-span-8 group relative overflow-hidden rounded-xl bg-india-green text-white p-5 flex flex-col justify-between h-32 transition-all shadow-lg shadow-india-green/20 active:scale-[0.98]"
+            disabled={loading || noChancesLeft}
+            className={`col-span-8 group relative overflow-hidden rounded-xl p-5 flex flex-col justify-between h-32 transition-all active:scale-[0.98] ${noChancesLeft
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-india-green text-white shadow-lg shadow-india-green/20'
+                }`}
         >
             <div className="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4">
                 <span className="material-symbols-outlined text-[120px]">front_hand</span>
             </div>
             <div className="flex items-center justify-between w-full">
                 <span className="material-symbols-outlined text-3xl bg-white/20 p-2 rounded-lg backdrop-blur-sm">front_hand</span>
-                <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">Priority</span>
+                {!noChancesLeft && <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">Priority</span>}
             </div>
-            <span className="text-xl font-black tracking-tighter text-left mt-2">{loading ? 'RAISING...' : 'RAISE HAND'}</span>
+            <span className="text-xl font-black tracking-tighter text-left mt-2">
+                {noChancesLeft ? 'NO CHANCES LEFT' : (loading ? 'RAISING...' : 'RAISE HAND')}
+            </span>
         </button>
     );
 }

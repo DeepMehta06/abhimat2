@@ -225,7 +225,39 @@ export default function MemberDashboard() {
                                 </div>
                             )}
 
-                            <FloorStatus queue={queue} />
+                            {/* Party Ranking */}
+                            {(() => {
+                                const leaderboard = useSessionStore.getState().leaderboard || [];
+                                const sortedLeaderboard = [...leaderboard].sort((a, b) => b.points - a.points);
+                                const myPartyRank = sortedLeaderboard.findIndex(p => p.party === user?.party) + 1;
+                                const myPartyData = sortedLeaderboard.find(p => p.party === user?.party);
+
+                                return (
+                                    <section className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden transition-shadow hover:shadow-md mt-2">
+                                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                            <h3 className="font-bold text-neutral-dark flex items-center gap-2 text-sm">
+                                                <span className="material-symbols-outlined text-india-green">military_tech</span>
+                                                Your Party Ranking
+                                            </h3>
+                                        </div>
+                                        <div className="p-6 flex items-center justify-around text-center">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Current Rank</p>
+                                                <p className="text-3xl font-black text-neutral-dark mt-1">
+                                                    {myPartyRank > 0 ? `#${myPartyRank}` : '—'}
+                                                </p>
+                                            </div>
+                                            <div className="h-10 w-px bg-gray-100"></div>
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Points</p>
+                                                <p className="text-3xl font-black text-india-green mt-1">
+                                                    {myPartyData ? myPartyData.points : '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </section>
+                                );
+                            })()}
                         </>
                     )}
 

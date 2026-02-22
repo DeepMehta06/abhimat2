@@ -10,17 +10,31 @@ export default function PartyDetailsForm({ user, onComplete }) {
     const [error, setError] = useState('');
 
     const handleTotalMembersChange = (e) => {
-        const val = parseInt(e.target.value) || 1;
+        const rawVal = e.target.value;
+        if (rawVal === '') {
+            setTotalMembers('');
+            setMembersData([]);
+            return;
+        }
+
+        let val = parseInt(rawVal, 10);
+        if (isNaN(val)) return;
+        if (val > 50) val = 50;
+
         setTotalMembers(val);
 
         // Adjust membersData array size
         const newData = [...membersData];
-        if (val > newData.length) {
-            for (let i = newData.length; i < val; i++) {
-                newData.push({ name: '', college: '' });
+        if (val > 0) {
+            if (val > newData.length) {
+                for (let i = newData.length; i < val; i++) {
+                    newData.push({ name: '', college: '' });
+                }
+            } else if (val < newData.length) {
+                newData.length = val;
             }
-        } else if (val < newData.length) {
-            newData.length = val;
+        } else {
+            newData.length = 0;
         }
         setMembersData(newData);
     };
@@ -105,8 +119,8 @@ export default function PartyDetailsForm({ user, onComplete }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-background-light z-[100] flex flex-col items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl w-full max-w-xl p-8 shadow-2xl border border-gray-100 relative my-8">
+        <div className="fixed inset-0 bg-background-light z-[100] overflow-y-auto px-4 py-8 md:py-12">
+            <div className="bg-white rounded-2xl w-full max-w-xl p-6 md:p-8 shadow-2xl border border-gray-100 relative mx-auto my-auto shrink-0 flex flex-col">
                 {/* Decorative header */}
                 <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-saffron via-white to-india-green rounded-t-2xl" />
 

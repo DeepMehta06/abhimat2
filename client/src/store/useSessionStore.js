@@ -48,8 +48,8 @@ const useSessionStore = create((set, get) => ({
             // Reconstruct timer if someone is speaking
             if (!activeSpk) {
                 get().resetTimer();
-            } else if (!get().isTimerRunning && get().timer === 0 && !get().intervalId) {
-                get().startTimer(60);
+            } else if (!get().isTimerRunning && !get().intervalId) {
+                get().startTimer(get().timerLimit || 60, get().timer || 0);
             }
         } catch (err) {
             set({ error: err.response?.data?.error || err.message || 'Failed to fetch session' });
@@ -65,7 +65,7 @@ const useSessionStore = create((set, get) => ({
         const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
         set({ timer: Math.max(0, elapsed), currentSpeakerStartedAt: startedAt });
 
-        if (!state.isTimerRunning && !state.intervalId && state.activeSpeaker) {
+        if (!state.isTimerRunning && !state.intervalId) {
             state.startTimer(state.timerLimit, Math.max(0, elapsed));
         }
     },

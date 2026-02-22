@@ -139,30 +139,33 @@ export default function SpeakerQueue() {
                             The queue is currently empty
                         </div>
                     )}
-                    {waiting.map((entry, idx) => (
-                        <div key={entry.id} className="group flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-soft hover:shadow-md transition-all">
-                            <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold text-gray-400 w-5 text-center">{idx + 1}</span>
-                                <div className="h-10 w-10 rounded-full bg-saffron/10 border border-saffron/20 flex items-center justify-center text-saffron font-bold text-sm shadow-sm">
-                                    {entry.member?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    {waiting.slice(0, 10).map((entry, idx) => {
+                        const chancesAvailable = Math.max(0, 2 - (entry.member?.speeches_count || 0));
+                        return (
+                            <div key={entry.id} className="group flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-soft hover:shadow-md transition-all">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs font-bold text-gray-400 w-5 text-center">{idx + 1}</span>
+                                    <div className="h-10 w-10 rounded-full bg-saffron/10 border border-saffron/20 flex items-center justify-center text-saffron font-bold text-sm shadow-sm">
+                                        {entry.member?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-neutral-dark group-hover:text-saffron transition-colors">{entry.member?.name}</p>
+                                        <p className="text-[10px] text-gray-500 uppercase">{entry.member?.party} · {chancesAvailable} chance{chancesAvailable !== 1 ? 's' : ''} available</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-bold text-neutral-dark group-hover:text-saffron transition-colors">{entry.member?.name}</p>
-                                    <p className="text-[10px] text-gray-500 uppercase">{entry.member?.party} · {entry.member?.speeches_count || 0} speech{entry.member?.speeches_count !== 1 ? 'es' : ''}</p>
-                                </div>
+                                {!isJudge && (
+                                    <button
+                                        onClick={() => handle('approve', entry.id)}
+                                        disabled={isQueueLoading}
+                                        className="h-9 px-4 rounded-lg bg-india-green/10 text-india-green font-bold text-xs flex items-center gap-1.5 disabled:opacity-40 hover:bg-india-green hover:text-white transition-all hover:shadow-md active:scale-95 border border-india-green/20 hover:border-transparent"
+                                    >
+                                        <span className="material-symbols-outlined text-base">check_circle</span>
+                                        Approve
+                                    </button>
+                                )}
                             </div>
-                            {!isJudge && (
-                                <button
-                                    onClick={() => handle('approve', entry.id)}
-                                    disabled={isQueueLoading}
-                                    className="h-9 px-4 rounded-lg bg-india-green/10 text-india-green font-bold text-xs flex items-center gap-1.5 disabled:opacity-40 hover:bg-india-green hover:text-white transition-all hover:shadow-md active:scale-95 border border-india-green/20 hover:border-transparent"
-                                >
-                                    <span className="material-symbols-outlined text-base">check_circle</span>
-                                    Approve
-                                </button>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </section>
         </div>
