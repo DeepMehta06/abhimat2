@@ -17,7 +17,7 @@ export default function TopBar({ session, liveCount }) {
                         <span className="material-symbols-outlined text-white text-2xl">gavel</span>
                     </div>
                     <div>
-                        <img src="/assets/Abhimat-logo.jpeg" alt="ABHIMAT Logo" className="h-8 w-auto object-contain drop-shadow" />
+                        <h1 className="text-lg font-extrabold tracking-tight text-neutral-dark leading-none">ABHIMAT '26</h1>
                         <p className="text-xs font-medium text-gray-500 mt-0.5 uppercase tracking-wide">
                             {user?.role === 'moderator' ? 'Moderator Panel' : 'Lok Sabha Simulator'}
                         </p>
