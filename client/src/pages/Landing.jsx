@@ -141,7 +141,7 @@ export default function Landing() {
                                     </p>
                                     <h1 style={{ fontFamily: "'Crimson Text', serif" }}
                                         className="text-6xl xl:text-7xl font-bold text-ashoka-blue drop-shadow-md leading-none">
-                                        ABHIMAT 2K26
+                                        <img src="/assets/Abhimat-logo.jpeg" alt="ABHIMAT Logo" className="h-20 w-auto object-contain drop-shadow-md mx-auto" />
                                     </h1>
                                     <p style={{ fontFamily: "'Crimson Text', serif" }}
                                         className="italic text-2xl text-india-green mt-6 leading-snug">
@@ -218,7 +218,7 @@ export default function Landing() {
                         </p>
                         <h1 style={{ fontFamily: "'Crimson Text', serif" }}
                             className="text-5xl font-bold text-ashoka-blue drop-shadow-sm leading-tight">
-                            ABHIMAT 2K26
+                            <img src="/assets/Abhimat-logo.jpeg" alt="ABHIMAT Logo" className="h-24 w-auto object-contain drop-shadow-lg mx-auto" />
                         </h1>
                         <p style={{ fontFamily: "'Crimson Text', serif" }}
                             className="italic text-lg text-india-green mt-4 max-w-xs mx-auto leading-snug">

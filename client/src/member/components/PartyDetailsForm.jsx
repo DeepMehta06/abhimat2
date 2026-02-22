@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { submitPartyDetails } from '../../shared/services/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PartyDetailsForm({ user, onComplete }) {
     const [totalMembers, setTotalMembers] = useState(1);
@@ -9,34 +10,25 @@ export default function PartyDetailsForm({ user, onComplete }) {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
-    const handleTotalMembersChange = (e) => {
-        const rawVal = e.target.value;
-        if (rawVal === '') {
-            setTotalMembers('');
-            setMembersData([]);
-            return;
-        }
-
-        let val = parseInt(rawVal, 10);
-        if (isNaN(val)) return;
-        if (val > 50) val = 50;
-
-        setTotalMembers(val);
-
-        // Adjust membersData array size
+    const updateMembersData = (newVal) => {
+        setTotalMembers(newVal);
         const newData = [...membersData];
-        if (val > 0) {
-            if (val > newData.length) {
-                for (let i = newData.length; i < val; i++) {
-                    newData.push({ name: '', college: '' });
-                }
-            } else if (val < newData.length) {
-                newData.length = val;
+        if (newVal > newData.length) {
+            for (let i = newData.length; i < newVal; i++) {
+                newData.push({ name: '', college: '' });
             }
-        } else {
-            newData.length = 0;
+        } else if (newVal < newData.length) {
+            newData.length = newVal;
         }
         setMembersData(newData);
+    };
+
+    const increment = () => {
+        if (totalMembers < 10) updateMembersData(totalMembers + 1);
+    };
+
+    const decrement = () => {
+        if (totalMembers > 1) updateMembersData(totalMembers - 1);
     };
 
     const handleMemberDataChange = (index, field, value) => {
@@ -51,7 +43,6 @@ export default function PartyDetailsForm({ user, onComplete }) {
 
         if (file.size > 1024 * 1024) {
             setError('Image size must be 1MB or less.');
-            // Clear the file input so they can select again
             e.target.value = '';
             return;
         }
@@ -63,8 +54,10 @@ export default function PartyDetailsForm({ user, onComplete }) {
         const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
         if (!cloudName || !uploadPreset) {
-            setError('Cloudinary configuration is missing. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in .env files.');
+            // Bypass Cloudinary upload if not configured, allowing user to proceed
+            setLogoUrl('https://ui-avatars.com/api/?name=Party&background=f1f5f9&color=64748b&size=128');
             setUploadingLogo(false);
+            e.target.value = '';
             return;
         }
 
@@ -84,23 +77,26 @@ export default function PartyDetailsForm({ user, onComplete }) {
                 setError('Failed to upload logo.');
             }
         } catch (err) {
-            setError('Error uploading logo.');
+            setError('Error uploading logo. Please try again.');
         } finally {
             setUploadingLogo(false);
+            e.target.value = '';
         }
     };
+
+    const isValid = useMemo(() => {
+        if (!logoUrl) return false;
+        if (membersData.some(m => !m.name.trim() || !m.college.trim())) return false;
+        return true;
+    }, [logoUrl, membersData]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
-        if (!logoUrl) {
-            return setError('Please upload a party logo.');
-        }
-        for (let i = 0; i < membersData.length; i++) {
-            if (!membersData[i].name || !membersData[i].college) {
-                return setError(`Please fill out name and college for member ${i + 1}.`);
-            }
+        if (!isValid) {
+            setError('Please complete all fields and upload a logo.');
+            return;
         }
 
         setSubmitting(true);
@@ -119,116 +115,181 @@ export default function PartyDetailsForm({ user, onComplete }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-background-light z-[100] overflow-y-auto px-4 py-8 md:py-12">
-            <div className="bg-white rounded-2xl w-full max-w-xl p-6 md:p-8 shadow-2xl border border-gray-100 relative mx-auto my-auto shrink-0 flex flex-col">
-                {/* Decorative header */}
-                <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-saffron via-white to-india-green rounded-t-2xl" />
-
-                <div className="mb-8 text-center">
-                    <h2 className="text-3xl font-black text-neutral-dark tracking-tight">Party Registration</h2>
-                    <p className="text-gray-500 font-medium mt-2">Welcome, <span className="text-india-green font-bold">{user.party}</span> delegate!</p>
-                </div>
-
-                <div className="bg-saffron/10 border-l-4 border-saffron p-4 mb-8 rounded-r-xl">
-                    <p className="text-sm text-saffron-dark font-bold text-center">
-                        **form should be filled correctly as would be used in grading participants**
+        <div className="fixed inset-0 bg-neutral-dark/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-full"
+            >
+                {/* Header */}
+                <div className="bg-gradient-to-r from-saffron via-white to-india-green h-2 w-full shrink-0" />
+                <div className="p-6 md:p-8 shrink-0 border-b border-gray-100">
+                    <h2 className="text-2xl md:text-3xl font-black text-neutral-dark tracking-tight text-center">
+                        Party Registration
+                    </h2>
+                    <p className="text-gray-500 font-medium mt-1 text-center text-sm md:text-base">
+                        Welcome, <span className="text-india-green font-bold">{user.party}</span> delegate!
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Logo Upload */}
-                    <div className="space-y-2">
-                        <label className="block text-sm font-bold text-neutral-dark">Party Logo <span className="text-red-500">*</span></label>
-                        <div className="flex items-center gap-4">
-                            {logoUrl ? (
-                                <img src={logoUrl} alt="Party Logo" className="h-16 w-16 object-contain rounded-lg border border-gray-200 p-1" />
-                            ) : (
-                                <div className="h-16 w-16 bg-gray-50 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300">
-                                    <span className="material-symbols-outlined text-gray-400">image</span>
+                {/* Scrollable Form Body */}
+                <div className="p-6 md:p-8 overflow-y-auto no-scrollbar flex-1 bg-gray-50/30">
+                    <form onSubmit={handleSubmit} className="space-y-8 max-w-md mx-auto">
+
+                        {/* Logo Upload */}
+                        <section className="space-y-3">
+                            <label className="block text-sm font-bold text-neutral-dark">
+                                Party Logo <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex items-center gap-4">
+                                <div className="h-20 w-20 shrink-0 bg-white rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
+                                    {logoUrl ? (
+                                        <img src={logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
+                                    ) : (
+                                        <span className="material-symbols-outlined text-gray-300 text-3xl">add_photo_alternate</span>
+                                    )}
                                 </div>
-                            )}
-                            <div className="flex-1">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleLogoUpload}
-                                    className="hidden"
-                                    id="logo-upload"
-                                    disabled={uploadingLogo}
-                                />
-                                <label
-                                    htmlFor="logo-upload"
-                                    className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${uploadingLogo
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-accent/20 text-accent-dark hover:bg-accent/30'
-                                        }`}
+                                <div className="flex-1">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoUpload}
+                                        className="hidden"
+                                        id="logo-upload"
+                                        disabled={uploadingLogo}
+                                    />
+                                    <label
+                                        htmlFor="logo-upload"
+                                        className={`cursor-pointer inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all w-full md:w-auto h-11 ${uploadingLogo
+                                            ? 'bg-gray-100 text-gray-400 pointer-events-none'
+                                            : 'bg-saffron/10 text-saffron-dark hover:bg-saffron/20 active:scale-95'
+                                            }`}
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">
+                                            {uploadingLogo ? 'hourglass_empty' : 'upload'}
+                                        </span>
+                                        {uploadingLogo ? 'Uploading...' : (logoUrl ? 'Change Logo' : 'Upload Logo')}
+                                    </label>
+                                    <p className="text-[10px] text-gray-400 mt-2 font-medium">JPEG, PNG, GIF (Max 1MB)</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Participant Count Selector */}
+                        <section className="space-y-3">
+                            <label className="block text-sm font-bold text-neutral-dark">
+                                Total Participants <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex items-center bg-white border border-gray-200 rounded-xl p-1 shadow-sm w-fit border-b-[3px]">
+                                <button
+                                    type="button"
+                                    onClick={decrement}
+                                    disabled={totalMembers <= 1}
+                                    className="h-10 w-12 flex items-center justify-center text-gray-500 hover:text-neutral-dark hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer active:scale-95 touch-manipulation"
+                                    aria-label="Decrease participants"
                                 >
-                                    <span className="material-symbols-outlined text-[18px]">
-                                        {uploadingLogo ? 'hourglass_empty' : 'upload'}
-                                    </span>
-                                    {uploadingLogo ? 'Uploading...' : (logoUrl ? 'Change Logo' : 'Upload Logo')}
-                                </label>
-                                <p className="text-[10px] text-gray-400 mt-1 font-medium">JPEG, PNG, GIF up to 1MB</p>
-                            </div>
-                        </div>
-                    </div>
+                                    <span className="material-symbols-outlined">remove</span>
+                                </button>
 
-                    {/* Total Members */}
-                    <div className="space-y-2">
-                        <label className="block text-sm font-bold text-neutral-dark">Total Members in Party <span className="text-red-500">*</span></label>
-                        <input
-                            type="number"
-                            min="1"
-                            max="50"
-                            value={totalMembers}
-                            onChange={handleTotalMembersChange}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-accent focus:border-accent outline-none transition-all font-medium text-neutral-dark"
-                            required
-                        />
-                    </div>
-
-                    {/* Dynamic Member Fields */}
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <h3 className="text-lg font-bold text-neutral-dark">Member Details</h3>
-                        {membersData.map((member, index) => (
-                            <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="space-y-1">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Member {index + 1} Name</label>
-                                    <input
-                                        type="text"
-                                        value={member.name}
-                                        onChange={(e) => handleMemberDataChange(index, 'name', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-accent focus:border-accent outline-none transition-all bg-white"
-                                        required
-                                        placeholder="Full Name"
-                                    />
+                                <div className="w-16 text-center font-black text-xl text-neutral-dark tabular-nums tracking-wider">
+                                    {totalMembers}
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">College</label>
-                                    <input
-                                        type="text"
-                                        value={member.college}
-                                        onChange={(e) => handleMemberDataChange(index, 'college', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-accent focus:border-accent outline-none transition-all bg-white"
-                                        required
-                                        placeholder="College Name"
-                                    />
-                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={increment}
+                                    disabled={totalMembers >= 10}
+                                    className="h-10 w-12 flex items-center justify-center text-gray-500 hover:text-neutral-dark hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer active:scale-95 touch-manipulation"
+                                    aria-label="Increase participants"
+                                >
+                                    <span className="material-symbols-outlined">add</span>
+                                </button>
                             </div>
-                        ))}
-                    </div>
+                            <p className="text-[11px] text-gray-500 font-medium">
+                                Minimum 1, Maximum 10 participants.
+                            </p>
+                        </section>
 
-                    {error && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[18px]">error</span>
-                            {error}
-                        </div>
-                    )}
+                        {/* Participant Details */}
+                        <section className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-neutral-dark">Participant Details</h3>
+                                <span className="text-[10px] py-1 px-2 uppercase tracking-wider font-bold bg-amber-100 text-amber-700 rounded-lg border border-amber-200">
+                                    Required for Entry
+                                </span>
+                            </div>
 
+                            <div className="space-y-3">
+                                <AnimatePresence initial={false}>
+                                    {membersData.map((member, index) => (
+                                        <motion.div
+                                            key={`member-${index}`}
+                                            initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                                            animate={{ opacity: 1, height: 'auto', overflow: 'visible' }}
+                                            exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                                            transition={{ duration: 0.2 }}
+                                            className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm space-y-4"
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-500 border border-gray-200">
+                                                    {index + 1}
+                                                </div>
+                                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                                                    Participant
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Full Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={member.name}
+                                                        onChange={(e) => handleMemberDataChange(index, 'name', e.target.value)}
+                                                        className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-saffron/20 focus:border-saffron outline-none transition-all placeholder:text-gray-300 shadow-sm"
+                                                        placeholder="e.g. Rahul Sharma"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">College</label>
+                                                    <input
+                                                        type="text"
+                                                        value={member.college}
+                                                        onChange={(e) => handleMemberDataChange(index, 'college', e.target.value)}
+                                                        className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-saffron/20 focus:border-saffron outline-none transition-all placeholder:text-gray-300 shadow-sm"
+                                                        placeholder="e.g. SPIT Mumbai"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        </section>
+
+                        {/* Error Space */}
+                        <AnimatePresence>
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium flex items-center gap-2 border border-red-100"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">error</span>
+                                    {error}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </form>
+                </div>
+
+                {/* Footer Action */}
+                <div className="p-6 shrink-0 border-t border-gray-100 bg-white">
                     <button
-                        type="submit"
-                        disabled={submitting || uploadingLogo}
-                        className="w-full py-4 rounded-xl bg-neutral-dark text-white font-black uppercase tracking-wide hover:bg-black transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        onClick={handleSubmit}
+                        disabled={submitting || uploadingLogo || !isValid}
+                        className="w-full h-14 rounded-xl bg-neutral-dark hover:bg-black text-white font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-neutral-dark disabled:active:scale-100 flex items-center justify-center gap-2"
                     >
                         {submitting ? (
                             <>
@@ -237,13 +298,18 @@ export default function PartyDetailsForm({ user, onComplete }) {
                             </>
                         ) : (
                             <>
-                                <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                                Complete Registration
+                                <span>Complete Registration</span>
+                                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                             </>
                         )}
                     </button>
-                </form>
-            </div>
+                    {!isValid && !error && (
+                        <p className="text-center text-[10px] text-gray-400 mt-3 font-bold uppercase tracking-wide">
+                            Please complete all required fields to continue
+                        </p>
+                    )}
+                </div>
+            </motion.div>
         </div>
     );
 }

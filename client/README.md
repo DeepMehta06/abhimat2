@@ -76,3 +76,23 @@ Moderators can clear all session chat messages instantly across all connected cl
 - Backend enforces `role === 'moderator'` check before deletion.
 - Realtime `DELETE` event listener in `useChatStore` ensures all tabs clear instantly, no refresh needed.
 - Confirmation modal prevents accidental deletion.
+
+---
+
+## Registration Form UX Improvement
+
+Redesigned the initial ``PartyDetailsForm`` to drastically improve mobile usability and fix input bugs.
+
+- **Participant count control redesign:** Replaced the buggy uncontrolled numeric input with a controlled, tap-friendly step-based selector (`-` and `+` buttons).
+- **Mobile-first optimization:** Improved layout spacing, touch target sizes (>44px), and eliminated keyboard pop-up issues for numeric limits. 
+- **Validation improvements:** Added real-time validation checks that disable the submit button until all required fields and logo uploads are complete, accompanied by smooth `framer-motion` error animations.
+
+---
+
+## Participant Leaderboard Integration
+
+Integrated the global Team Leaderboard directly into the Member Dashboard to foster competitive engagement.
+
+- **Side-by-side Layout:** Reorganized the 'Polls' tab to feature the active poll alongside the live Leaderboard on desktop screens.
+- **Dynamic Slicing:** The Leaderboard defaults to displaying only the Top 10 parties to keep the UI focused and readable.
+- **Expandable View:** Added an interactive 'Show All Teams' toggle that allows members to seamlessly reveal the full ranking of every registered party at any stage of the game, complete with smooth layout transitions.

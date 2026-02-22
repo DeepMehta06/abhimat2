@@ -12,6 +12,7 @@ import PartyDetailsForm from '../components/PartyDetailsForm';
 import ChatPanel from '../components/ChatPanel';
 import StageOverlay from '../../components/floor/StageOverlay';
 import PowerCardAnimation from '../../components/floor/PowerCardAnimation';
+import Leaderboard from '../../moderator/components/Leaderboard';
 
 const TABS = [
     { id: 'home', icon: 'dashboard', label: 'Session' },
@@ -21,7 +22,7 @@ const TABS = [
 
 export default function MemberDashboard() {
     const { user, powerCards, fetchCards, initRealtimeUser } = useUserStore();
-    const { session, poll, fetchActiveSession, initRealtimeSession } = useSessionStore();
+    const { session, poll, leaderboard, fetchActiveSession, initRealtimeSession } = useSessionStore();
     const { queue, initQueueRealtime } = useQueueStore();
 
     const [partyDetails, setPartyDetails] = useState(undefined); // undefined = loading, null = not found
@@ -30,15 +31,24 @@ export default function MemberDashboard() {
     const myQueueEntry = queue.find(q => q.member?.id === user?.id);
 
     const loadParty = useCallback(async () => {
-        if (!user?.party) return;
+        if (!user?.party) {
+            setPartyDetails(null);
+            return;
+        }
         try {
             const res = await getPartyDetails(user.party);
-            setPartyDetails(res.data);
-        } catch (err) {
-            if (err.response?.status === 404) {
+            if (!res.data) {
                 setPartyDetails(null);
             } else {
-                console.error(err);
+                setPartyDetails(res.data);
+            }
+        } catch (err) {
+            // Check specifically for 404 or missing table errors
+            if (err.response?.status === 404 || err.response?.data?.message?.includes('not found')) {
+                setPartyDetails(null);
+            } else {
+                console.error('Failed to load party details:', err);
+                setPartyDetails(null); // Fallback to prompt form rather than stay stuck undefined
             }
         }
     }, [user?.party]);
@@ -227,8 +237,8 @@ export default function MemberDashboard() {
 
                             {/* Party Ranking */}
                             {(() => {
-                                const leaderboard = useSessionStore.getState().leaderboard || [];
-                                const sortedLeaderboard = [...leaderboard].sort((a, b) => b.points - a.points);
+                                const currentLeaderboard = leaderboard || [];
+                                const sortedLeaderboard = [...currentLeaderboard].sort((a, b) => b.points - a.points);
                                 const myPartyRank = sortedLeaderboard.findIndex(p => p.party === user?.party) + 1;
                                 const myPartyData = sortedLeaderboard.find(p => p.party === user?.party);
 
@@ -262,16 +272,21 @@ export default function MemberDashboard() {
                     )}
 
                     {tab === 'polls' && (
-                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            {poll ? (
-                                <PollCard poll={poll} onVoted={fetchActiveSession} />
-                            ) : (
-                                <div className="bg-white rounded-xl p-8 text-center border border-dashed border-gray-200 shadow-soft hover:bg-gray-50/50 transition-colors">
-                                    <span className="material-symbols-outlined text-5xl text-gray-200 block mb-3">bar_chart</span>
-                                    <p className="text-gray-400 font-medium">No active poll right now.</p>
-                                    <p className="text-[11px] text-gray-300 mt-1">The moderator will create one soon.</p>
-                                </div>
-                            )}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex flex-col gap-4">
+                                {poll ? (
+                                    <PollCard poll={poll} onVoted={fetchActiveSession} />
+                                ) : (
+                                    <div className="bg-white rounded-xl p-8 text-center border border-dashed border-gray-200 shadow-soft hover:bg-gray-50/50 transition-colors h-full flex flex-col items-center justify-center min-h-[300px]">
+                                        <span className="material-symbols-outlined text-5xl text-gray-200 block mb-3">bar_chart</span>
+                                        <p className="text-gray-400 font-medium">No active poll right now.</p>
+                                        <p className="text-[11px] text-gray-300 mt-1">The moderator will create one soon.</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-4">
+                                <Leaderboard leaderboard={leaderboard || []} />
+                            </div>
                         </div>
                     )}
 

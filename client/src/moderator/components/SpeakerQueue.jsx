@@ -34,7 +34,7 @@ export default function SpeakerQueue() {
         isQueueLoading
     } = useQueueStore();
 
-    const { session, timer, isTimerRunning } = useSessionStore();
+    const { session, timer, isTimerRunning, pauseTimer, startTimer } = useSessionStore();
     const { role } = useUserStore();
 
     const currentSpeaker = session?.current_speaker;
@@ -103,13 +103,32 @@ export default function SpeakerQueue() {
                                         onClick={() => handle('done')}
                                         loading={isQueueLoading}
                                     />
+                                    {isTimerRunning ? (
+                                        <button
+                                            onClick={pauseTimer}
+                                            disabled={isQueueLoading}
+                                            className="flex-1 bg-white border border-amber-500 hover:bg-amber-500 text-amber-500 hover:text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all text-sm shadow-sm active:scale-95"
+                                        >
+                                            <span className="material-symbols-outlined text-base">pause</span>
+                                            PAUSE
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => startTimer(null, timer)}
+                                            disabled={isQueueLoading}
+                                            className="flex-1 bg-white border border-india-green hover:bg-india-green text-india-green hover:text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all text-sm shadow-sm active:scale-95"
+                                        >
+                                            <span className="material-symbols-outlined text-base">play_arrow</span>
+                                            RESUME
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => handle('revoke')}
                                         disabled={isQueueLoading}
                                         className="flex-1 bg-white border border-alert-red hover:bg-alert-red text-alert-red hover:text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all text-sm shadow-sm active:scale-95"
                                     >
                                         <span className="material-symbols-outlined text-base">mic_off</span>
-                                        REVOKE MIC
+                                        REVOKE
                                     </button>
                                 </>
                             ) : (

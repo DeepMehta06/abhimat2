@@ -1,6 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 
-export default function Leaderboard({ leaderboard }) {
+export default function Leaderboard({ leaderboard, alwaysShowAll = false }) {
+    const [showAll, setShowAll] = useState(alwaysShowAll);
+
     if (!leaderboard?.length) {
         return (
             <div className="bg-white rounded-xl p-8 text-center border border-gray-100 shadow-soft">
@@ -13,6 +16,7 @@ export default function Leaderboard({ leaderboard }) {
     const partyColors = ['bg-saffron/20 text-saffron', 'bg-india-green/20 text-india-green', 'bg-ashoka-blue/20 text-ashoka-blue', 'bg-amber-100 text-amber-600', 'bg-purple-100 text-purple-600'];
 
     const sorted = [...leaderboard].sort((a, b) => b.points - a.points);
+    const displayList = showAll ? sorted : sorted.slice(0, 10);
 
     return (
         <div className="bg-white rounded-xl border border-gray-100 shadow-soft overflow-hidden">
@@ -22,7 +26,7 @@ export default function Leaderboard({ leaderboard }) {
             </div>
             <div className="flex flex-col">
                 <AnimatePresence initial={false}>
-                    {sorted.map((entry, idx) => (
+                    {displayList.map((entry, idx) => (
                         <motion.div
                             key={entry.party}
                             className={`flex items-center gap-4 px-4 py-3.5 ${idx < sorted.length - 1 ? 'border-b border-gray-50' : ''} ${idx < 3 ? 'bg-gradient-to-r from-transparent to-transparent hover:from-saffron/5 hover:to-transparent' : ''} transition-colors`}
@@ -68,6 +72,26 @@ export default function Leaderboard({ leaderboard }) {
                     ))}
                 </AnimatePresence>
             </div>
+            {sorted.length > 10 && !alwaysShowAll && (
+                <div className="p-3 border-t border-gray-100 bg-gray-50/30">
+                    <button
+                        onClick={() => setShowAll(!showAll)}
+                        className="w-full py-2 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-100 hover:text-neutral-dark transition-colors flex items-center justify-center gap-1"
+                    >
+                        {showAll ? (
+                            <>
+                                <span className="material-symbols-outlined text-[16px]">expand_less</span>
+                                Show Top 10 Only
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined text-[16px]">expand_more</span>
+                                Show All {sorted.length} Teams
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
