@@ -29,7 +29,7 @@ router.post('/stage', authMiddleware, async (req, res) => {
     }
 
     const { session_id, stage } = req.body;
-    if (!['first_bill', 'one_on_one', 'third_round'].includes(stage)) {
+    if (!['waiting_room', 'first_bill', 'one_on_one', 'third_round'].includes(stage)) {
         return res.status(400).json({ error: 'Invalid stage' });
     }
 

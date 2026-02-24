@@ -31,7 +31,7 @@ create table members (
   constituency    text default '',
   alignment       text, -- 'government', 'opposition', or null for neutral/mod
   role            text not null default 'member'
-                  check (role in ('member', 'moderator', 'judge')),
+                  check (role in ('member', 'moderator', 'judge', 'display')),
   speeches_count  int not null default 0,
   created_at      timestamptz default now()
 );
@@ -41,8 +41,8 @@ create table sessions (
   id                  uuid primary key default gen_random_uuid(),
   title               text not null,
   is_active           boolean not null default false,
-  stage               text not null default 'first_bill'
-                      check (stage in ('first_bill', 'one_on_one', 'third_round')),
+  stage               text not null default 'waiting_room'
+                      check (stage in ('waiting_room', 'first_bill', 'one_on_one', 'third_round')),
   current_speaker_id  uuid references members(id) on delete set null,
   created_at          timestamptz default now()
 );
@@ -192,6 +192,10 @@ alter publication supabase_realtime add table power_cards;
 -- Moderator (password = "MOD", member_id = "MOD00001")
 insert into members (member_id, name, party, constituency, alignment, role) values
   ('MOD00001', 'Chief Moderator', 'MOD', 'Central Hall', null, 'moderator');
+
+-- Display Account (password = "DASH", member_id = "DASHMOD")
+insert into members (member_id, name, party, constituency, alignment, role) values
+  ('DASHMOD', 'Main Display', 'SYS', 'System', null, 'display');
 
 -- Judges (password = "JDG", member_id = JDG...)
 insert into members (member_id, name, party, constituency, alignment, role) values

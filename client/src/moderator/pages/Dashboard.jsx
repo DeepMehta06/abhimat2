@@ -11,8 +11,16 @@ import SpeakerGrader from '../components/SpeakerGrader';
 import ChatPanel from '../../member/components/ChatPanel';
 import StageOverlay from '../../components/floor/StageOverlay';
 import PowerCardAnimation from '../../components/floor/PowerCardAnimation';
+import CustomSelect from '../../shared/components/CustomSelect';
 
 const PARTIES = ['BJP', 'INC', 'AAP', 'TMC', 'SP', 'BSP'];
+
+const STAGE_OPTIONS = [
+    { value: 'waiting_room', label: 'Stage 0: Waiting Room', description: 'Members wait here', icon: 'hourglass_empty' },
+    { value: 'first_bill', label: 'Stage 1: First Bill', description: 'Initial remarks', icon: 'gavel' },
+    { value: 'one_on_one', label: 'Stage 2: One on One', description: 'Direct debate', icon: 'mic' },
+    { value: 'third_round', label: 'Stage 3: Third Round', description: 'Final statements', icon: 'flag' }
+];
 
 const TABS = [
     { id: 'session', icon: 'dashboard', label: 'Session' },
@@ -158,8 +166,8 @@ export default function ModeratorDashboard() {
                         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {/* Stage Controls: Only Moderators can change the stage */}
                             {session && role === 'moderator' && (
-                                <section className="bg-white rounded-xl p-4 shadow-soft border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all hover:shadow-md relative overflow-hidden group">
-                                    <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-saffron/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <section className="bg-white rounded-xl p-4 shadow-soft border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all hover:shadow-md relative group">
+                                    <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-saffron/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity rounded-r-xl"></div>
                                     <div>
                                         <h2 className="text-sm font-bold text-neutral-dark flex items-center gap-2">
                                             <span className="material-symbols-outlined text-saffron bg-saffron/10 p-1.5 rounded-lg">auto_awesome_motion</span>
@@ -167,15 +175,13 @@ export default function ModeratorDashboard() {
                                         </h2>
                                         <p className="text-xs text-gray-500 font-medium mt-1">Updates global allowed power cards and timer rules.</p>
                                     </div>
-                                    <select
-                                        className="bg-gray-50 hover:bg-white text-sm font-bold text-neutral-dark border border-gray-200 rounded-lg py-2.5 px-4 outline-none focus:ring-2 focus:ring-saffron cursor-pointer shadow-sm transition-all focus:shadow-md max-w-[200px]"
-                                        value={session.stage || 'first_bill'}
-                                        onChange={async (e) => await updateStage(e.target.value)}
-                                    >
-                                        <option value="first_bill">Stage 1: First Bill</option>
-                                        <option value="one_on_one">Stage 2: One on One</option>
-                                        <option value="third_round">Stage 3: Third Round</option>
-                                    </select>
+                                    <div className="z-50 relative">
+                                        <CustomSelect
+                                            value={session.stage || 'first_bill'}
+                                            onChange={updateStage}
+                                            options={STAGE_OPTIONS}
+                                        />
+                                    </div>
                                 </section>
                             )}
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">

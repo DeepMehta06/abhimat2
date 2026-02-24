@@ -13,6 +13,7 @@ import ChatPanel from '../components/ChatPanel';
 import StageOverlay from '../../components/floor/StageOverlay';
 import PowerCardAnimation from '../../components/floor/PowerCardAnimation';
 import Leaderboard from '../../moderator/components/Leaderboard';
+import WaitingRoom from '../components/WaitingRoom';
 
 const TABS = [
     { id: 'home', icon: 'dashboard', label: 'Session' },
@@ -120,6 +121,11 @@ export default function MemberDashboard() {
             </div>
         </aside>
     );
+
+    // If stage is waiting_room, take over the entire screen for the user
+    if (session?.stage === 'waiting_room') {
+        return <WaitingRoom />;
+    }
 
     return (
         <div className="bg-background-light font-display antialiased text-neutral-dark min-h-screen">
