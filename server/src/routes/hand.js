@@ -140,7 +140,7 @@ router.post('/use-power-card', authMiddleware, async (req, res) => {
     // will be handled by the frontend upon receiving this success response, 
     // possibly combined with Realtime broadcasts.
     try {
-        await supabase.channel('power-cards').send({
+        await supabase.channel('global-session-channel').send({
             type: 'broadcast',
             event: 'card_used',
             payload: {
