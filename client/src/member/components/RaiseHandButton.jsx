@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { raiseHand, lowerHand } from "../../shared/services/api";
 import useRaiseHandStore from "../../store/useRaiseHandStore";
+import useRaiseHandWindowStore from "../../store/useRaiseHandWindowStore";
 
 export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const { raiseHandEnabled } = useRaiseHandStore();
+  const { isWindowActive, timeRemaining } = useRaiseHandWindowStore();
 
   const isWaiting = queueEntry?.status === "waiting";
   const isSpeaking = queueEntry?.status === "speaking";
@@ -15,7 +17,7 @@ export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
   const noChancesLeft = speechesLeft === 0;
 
   async function handleRaise(e) {
-    if (noChancesLeft || !raiseHandEnabled) {
+    if (noChancesLeft || !isWindowActive) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -96,7 +98,7 @@ export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
     );
   }
 
-  if (!raiseHandEnabled) {
+  if (!raiseHandEnabled || !isWindowActive) {
     return (
       <div className="col-span-8 relative overflow-hidden rounded-xl p-5 flex flex-col justify-between h-32 bg-red-100 border border-red-300 opacity-60 cursor-not-allowed">
         <div className="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4">
@@ -110,7 +112,7 @@ export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
           </span>
         </div>
         <span className="text-xl font-black tracking-tighter text-left mt-2 text-red-600">
-          RAISE HAND DISABLED
+          NOT ALLOWED
         </span>
       </div>
     );
@@ -139,7 +141,7 @@ export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
         </span>
         {!noChancesLeft && (
           <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">
-            Priority
+            {timeRemaining > 0 ? `${Math.ceil(timeRemaining / 1000)}s` : "Priority"}
           </span>
         )}
       </div>

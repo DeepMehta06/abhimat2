@@ -34,6 +34,7 @@ export const getMe = () => api.get("/auth/me");
 export const getActiveSession = () => api.get("/session/active");
 export const updateSessionStage = (session_id, stage) =>
   api.post("/session/stage", { session_id, stage });
+export const getRaiseHandStatus = () => api.get("/session/raise-hand/status");
 export const toggleRaiseHandAccess = (raise_hand_enabled) =>
   api.patch("/session/raise-hand", { raise_hand_enabled });
 

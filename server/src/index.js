@@ -24,6 +24,10 @@ const PORT = process.env.PORT || 3001;
 // In-memory store for raise hand access per session
 export const raiseHandAccessStore = new Map();
 
+// In-memory store for raise hand windows per session
+// Each entry: { sessionId: { windowStart: timestamp, windowEnd: timestamp, pressedMembers: Set<memberId> } }
+export const raiseHandWindowStore = new Map();
+
 // Security & logging
 app.use(helmet());
 app.use(morgan("dev"));

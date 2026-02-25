@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import useUserStore from "../../store/useUserStore";
 import useSessionStore from "../../store/useSessionStore";
 import useQueueStore from "../../store/useQueueStore";
-import { getPartyDetails } from "../../shared/services/api";
+import useRaiseHandWindowStore from "../../store/useRaiseHandWindowStore";
+import { getPartyDetails, getRaiseHandStatus } from "../../shared/services/api";
+import { supabase } from "../../shared/services/supabase";
 import TopBar from "../../shared/components/TopBar";
 import FloorStatus from "../../shared/components/FloorStatus";
 import RaiseHandButton from "../components/RaiseHandButton";
@@ -31,6 +33,12 @@ export default function MemberDashboard() {
     initRealtimeSession,
   } = useSessionStore();
   const { queue, initQueueRealtime } = useQueueStore();
+  const {
+    isWindowActive,
+    timeRemaining,
+    setWindowState,
+    setTimeRemaining,
+  } = useRaiseHandWindowStore();
 
   const [partyDetails, setPartyDetails] = useState(undefined); // undefined = loading, null = not found
   const [tab, setTab] = useState("home");
@@ -62,6 +70,60 @@ export default function MemberDashboard() {
       }
     }
   }, [user?.party]);
+
+  // Subscribe to raise hand window broadcasts via Realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel("raise-hand-updates")
+      .on(
+        "broadcast",
+        { event: "window_state_changed" },
+        (payload) => {
+          const { isEnabled, isWindowActive, timeRemaining } = payload.payload;
+          setWindowState(isEnabled, isWindowActive, timeRemaining);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [setWindowState]);
+
+  // Poll for raise hand window status every 500ms when window is active
+  useEffect(() => {
+    const pollWindowStatus = async () => {
+      try {
+        const res = await getRaiseHandStatus();
+        const { isEnabled, isWindowActive: active, timeRemaining: remaining } =
+          res.data;
+        setWindowState(isEnabled, active, remaining);
+      } catch (err) {
+        console.error("Failed to poll raise hand status:", err);
+      }
+    };
+
+    // Initial poll immediately
+    pollWindowStatus();
+
+    // Set up polling interval - poll frequently to track countdown accurately
+    const interval = setInterval(pollWindowStatus, 500);
+
+    return () => clearInterval(interval);
+  }, [setWindowState]);
+
+  // Local countdown timer to update UI more smoothly
+  useEffect(() => {
+    if (!isWindowActive || timeRemaining <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeRemaining(timeRemaining - 100);
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [isWindowActive, timeRemaining, setTimeRemaining]);
 
   useEffect(() => {
     initRealtimeSession();

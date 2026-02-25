@@ -1,7 +1,7 @@
 import express from "express";
 import { supabase } from "../supabase.js";
 import { authMiddleware, moderatorOnly } from "../middleware/auth.js";
-import { raiseHandAccessStore } from "../index.js";
+import { raiseHandAccessStore, raiseHandWindowStore } from "../index.js";
 
 const router = express.Router();
 
@@ -26,7 +26,31 @@ router.post("/raise", authMiddleware, async (req, res) => {
     });
   }
 
-  // Check if already in queue
+  // Check if we have an active window and if member already pressed in this window
+  const window = raiseHandWindowStore.get(session.id);
+  if (!window) {
+    return res.status(403).json({
+      error: "Raise hand window is not active",
+    });
+  }
+
+  const now = Date.now();
+  if (now > window.windowEnd) {
+    // Window expired
+    raiseHandWindowStore.delete(session.id);
+    return res.status(403).json({
+      error: "Raise hand window has expired",
+    });
+  }
+
+  // Check if this member already pressed in this window
+  if (window.pressedMembers.has(memberId)) {
+    return res.status(409).json({
+      error: "You have already raised your hand in this window",
+    });
+  }
+
+  // Check if already in queue (existing check)
   const { data: existing } = await supabase
     .from("speaker_queue")
     .select("id, status")
@@ -62,6 +86,10 @@ router.post("/raise", authMiddleware, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // Record that this member pressed in this window
+  window.pressedMembers.add(memberId);
+
   res.status(201).json({ entry: data });
 });
 
