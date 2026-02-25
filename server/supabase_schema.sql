@@ -67,9 +67,13 @@ create table chat_messages (
   session_id  uuid not null references sessions(id) on delete cascade,
   member_id   uuid not null references members(id) on delete cascade,
   content     text not null check (char_length(content) between 1 and 500),
-  created_at  timestamptz default now()
+  is_golden   boolean not null default false,
+  golden_by_id uuid references members(id) on delete set null,
+  created_at  timestamptz default now(),
+  golden_at   timestamptz
 );
 create index chat_session_ts on chat_messages (session_id, created_at desc);
+create index chat_golden on chat_messages (session_id, is_golden) where is_golden = true;
 
 -- POLLS
 create table polls (

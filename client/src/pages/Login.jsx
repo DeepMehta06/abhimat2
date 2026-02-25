@@ -13,7 +13,12 @@ export default function Login() {
         e.preventDefault();
         try {
             const user = await login(memberId, password);
-            navigate(user.role === 'moderator' ? '/moderator' : '/member');
+            // DASHMOD goes to display dashboard (queue & timer only)
+            if (user.member_id === 'DASHMOD') {
+                navigate('/display');
+            } else {
+                navigate(user.role === 'moderator' ? '/moderator' : '/member');
+            }
         } catch { }
     }
 

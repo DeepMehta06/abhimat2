@@ -90,9 +90,11 @@ Every speaker turn is strictly bound to a `queue_id`.
 
 ### 4. Power Cards
 Granted automatically based on the final grade of a speech:
-- **Score > 65**: Granted `Interrupt`
-- **Score >= 75**: Granted `Interrupt` + `Challenge`
-- **Score > 85**: Granted `Interrupt` + `Challenge` + `Add Time`
+- **Score >= 250**: Granted `Interrupt` 
+- **Score >= 500**: Granted `Add Time` (+60 seconds)
+- **Score >= 750**: Granted `Interrupt`
+
+**Team Cap**: Each team can have a maximum of 5 power cards used per session.
 
 When a member plays a card, it is immediately deducted from their inventory, broadcasted via Supabase Realtime to the `FloorStatus` component, and alters the live timer (e.g., pausing it for an interruption, or adding +60 seconds).
 

@@ -9,10 +9,15 @@ function ProtectedRoute({ children, requiredRole }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/" replace />;
 
+  // DASHMOD can only access display dashboard
+  if (user.member_id === 'DASHMOD' && requiredRole !== 'display') {
+    return <Navigate to="/display" replace />;
+  }
+
   if (requiredRole === 'moderator' && user.role !== 'moderator' && user.role !== 'judge') {
     return <Navigate to={user.role === 'display' ? '/display' : '/member'} replace />;
   }
-  if (requiredRole === 'display' && user.role !== 'display') {
+  if (requiredRole === 'display' && user.role !== 'display' && user.member_id !== 'DASHMOD') {
     return <Navigate to={user.role === 'moderator' || user.role === 'judge' ? '/moderator' : '/member'} replace />;
   }
   if (requiredRole === 'member' && user.role !== 'member') {
@@ -24,6 +29,9 @@ function ProtectedRoute({ children, requiredRole }) {
 function RootRedirect() {
   const { user } = useAuth();
   if (!user) return <Landing />;
+
+  // DASHMOD always goes to display dashboard
+  if (user.member_id === 'DASHMOD') return <Navigate to="/display" replace />;
 
   if (user.role === 'display') return <Navigate to="/display" replace />;
   if (user.role === 'moderator' || user.role === 'judge') return <Navigate to="/moderator" replace />;
