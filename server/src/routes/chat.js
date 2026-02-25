@@ -26,10 +26,9 @@ router.get('/', authMiddleware, async (req, res) => {
         .range(page * limit, page * limit + limit - 1);
 
     if (error) return res.status(500).json({ error: error.message });
-    
+
     // Fetch grader info separately if needed
     res.json({ messages: (data || []).reverse() });
-});
 });
 
 // POST /chat — post a message
