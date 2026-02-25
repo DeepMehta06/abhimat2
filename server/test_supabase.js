@@ -56,7 +56,82 @@ async function testQueue() {
     }
 }
 
+async function testDASHMODConnection() {
+    console.log("\n=== Testing DASHMOD Connection ===");
+    
+    try {
+        // Test connection first
+        console.log("1. Testing Supabase connection...");
+        const { data: connectionTest, error: connectionError } = await supabase
+            .from('sessions')
+            .select('id')
+            .limit(1);
+        
+        if (connectionError) {
+            console.error("❌ Connection Error:", connectionError.message);
+            return;
+        }
+        console.log("✅ Connection Successful");
+
+        // Check for DASHMOD in members table
+        console.log("\n2. Searching for DASHMOD in members table...");
+        const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('*')
+            .ilike('name', '%DASHMOD%');
+        
+        if (memberError) {
+            console.error("❌ Error searching members:", memberError.message);
+        } else {
+            if (memberData && memberData.length > 0) {
+                console.log("✅ Found DASHMOD in members:", memberData);
+            } else {
+                console.log("❌ DASHMOD NOT found in members table");
+            }
+        }
+
+        // Check for DASHMOD in parties table (if exists)
+        console.log("\n3. Searching for DASHMOD in parties table...");
+        const { data: partyData, error: partyError } = await supabase
+            .from('parties')
+            .select('*')
+            .ilike('name', '%DASHMOD%');
+        
+        if (partyError) {
+            console.error("⚠️ Parties table may not exist or error:", partyError.message);
+        } else {
+            if (partyData && partyData.length > 0) {
+                console.log("✅ Found DASHMOD in parties:", partyData);
+            } else {
+                console.log("❌ DASHMOD NOT found in parties table");
+            }
+        }
+
+        // Check for DASHMOD in sessions table
+        console.log("\n4. Searching for DASHMOD in sessions table...");
+        const { data: sessionData, error: sessionError } = await supabase
+            .from('sessions')
+            .select('*')
+            .ilike('title', '%DASHMOD%');
+        
+        if (sessionError) {
+            console.error("❌ Error searching sessions:", sessionError.message);
+        } else {
+            if (sessionData && sessionData.length > 0) {
+                console.log("✅ Found DASHMOD in sessions:", sessionData);
+            } else {
+                console.log("❌ DASHMOD NOT found in sessions table");
+            }
+        }
+
+        console.log("\n=== Test Complete ===\n");
+    } catch (err) {
+        console.error("❌ Unexpected error:", err.message);
+    }
+}
+
 async function main() {
+    await testDASHMODConnection();
     await testSessionActive();
     await testQueue();
 }

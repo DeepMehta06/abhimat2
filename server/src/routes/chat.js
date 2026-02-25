@@ -19,13 +19,17 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const { data, error } = await supabase
         .from('chat_messages')
-        .select('id, content, created_at, member:members(id, name, party)')
+        .select(`id, content, created_at, is_golden, golden_at, 
+                 member:members(id, name, party)`)
         .eq('session_id', session.id)
         .order('created_at', { ascending: false })
         .range(page * limit, page * limit + limit - 1);
 
     if (error) return res.status(500).json({ error: error.message });
+    
+    // Fetch grader info separately if needed
     res.json({ messages: (data || []).reverse() });
+});
 });
 
 // POST /chat — post a message
@@ -73,6 +77,46 @@ router.delete('/', authMiddleware, async (req, res) => {
 
     if (error) return res.status(500).json({ error: error.message });
     res.json({ message: 'Chat cleared successfully' });
+});
+
+// PATCH /chat/:messageId/golden — mark/unmark message as golden
+router.patch('/:messageId/golden', authMiddleware, async (req, res) => {
+    const { messageId } = req.params;
+    const isGolden = req.body.is_golden !== false;
+
+    // Verify message exists and get message details
+    const { data: message, error: fetchError } = await supabase
+        .from('chat_messages')
+        .select('id, member_id, session_id')
+        .eq('id', messageId)
+        .single();
+
+    if (fetchError || !message) {
+        return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Only allow members to mark their own messages or moderators to mark any
+    if (req.user.id !== message.member_id && req.user.role !== 'moderator') {
+        return res.status(403).json({ error: 'You can only mark your own messages as golden' });
+    }
+
+    // Update the message
+    const updateData = {
+        is_golden: isGolden,
+        golden_by_id: isGolden ? req.user.id : null,
+        golden_at: isGolden ? new Date().toISOString() : null
+    };
+
+    const { data, error } = await supabase
+        .from('chat_messages')
+        .update(updateData)
+        .eq('id', messageId)
+        .select(`id, content, created_at, is_golden, golden_at, golden_by_id,
+                 member:members(id, name, party)`)
+        .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: data });
 });
 
 export default router;

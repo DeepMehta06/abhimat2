@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useUserStore from '../../store/useUserStore';
 import useSessionStore from '../../store/useSessionStore';
 import useQueueStore from '../../store/useQueueStore';
+import { useAuth } from '../../shared/context/AuthContext';
 import QueueView from '../components/QueueView';
 import ActiveSpeakerView from '../components/ActiveSpeakerView';
 
@@ -9,6 +11,8 @@ export default function DisplayDashboard() {
     const { initRealtimeUser } = useUserStore();
     const { session, activeSpeaker, initRealtimeSession } = useSessionStore();
     const { initQueueRealtime } = useQueueStore();
+    const { logout } = useAuth();
+    const navigate = useNavigate();
 
     // Initialize Realtime Stores on Mount
     useEffect(() => {
@@ -17,6 +21,11 @@ export default function DisplayDashboard() {
         initRealtimeUser();
     }, [initRealtimeSession, initQueueRealtime, initRealtimeUser]);
 
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
+
     return (
         <div className="bg-background-light font-display antialiased text-neutral-dark min-h-screen w-full flex flex-col relative overflow-hidden">
             {/* Top Tricolor Stripe */}
@@ -24,6 +33,18 @@ export default function DisplayDashboard() {
                 <div className="flex-1 bg-saffron" />
                 <div className="flex-1 bg-white" />
                 <div className="flex-1 bg-india-green" />
+            </div>
+
+            {/* Logout Button */}
+            <div className="absolute top-5 right-6 z-40">
+                <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-all font-semibold text-sm shadow-md"
+                    title="Logout"
+                >
+                    <span className="material-symbols-outlined text-lg">logout</span>
+                    <span>Logout</span>
+                </button>
             </div>
 
             {/* Subtle Dot pattern bg */}

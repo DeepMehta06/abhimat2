@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../shared/services/supabase';
-import { getChat, postMessage, clearChat as apiClearChat } from '../shared/services/api';
+import { getChat, postMessage, clearChat as apiClearChat, markMessageGolden } from '../shared/services/api';
 
 const useChatStore = create((set, get) => ({
     messages: [],
@@ -27,6 +27,15 @@ const useChatStore = create((set, get) => ({
     sendMessage: async (content) => {
         try {
             await postMessage(content);
+        } catch (err) {
+            set({ error: err.response?.data?.error || err.message });
+            throw err;
+        }
+    },
+
+    markGolden: async (messageId, isGolden = true) => {
+        try {
+            await markMessageGolden(messageId, isGolden);
         } catch (err) {
             set({ error: err.response?.data?.error || err.message });
             throw err;
@@ -60,6 +69,18 @@ const useChatStore = create((set, get) => ({
                 'postgres_changes',
                 {
                     event: 'INSERT',
+                    schema: 'public',
+                    table: 'chat_messages',
+                    filter: `session_id=eq.${roomId}`
+                },
+                () => {
+                    get().fetchMessages();
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
                     schema: 'public',
                     table: 'chat_messages',
                     filter: `session_id=eq.${roomId}`

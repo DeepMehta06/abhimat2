@@ -48,6 +48,7 @@ export const markDone = () => api.patch('/speaker/done');
 export const getChat = (page = 0) => api.get(`/chat?page=${page}`);
 export const postMessage = (content) => api.post('/chat', { content });
 export const clearChat = () => api.delete('/chat');
+export const markMessageGolden = (messageId, isGolden = true) => api.patch(`/chat/${messageId}/golden`, { is_golden: isGolden });
 
 // Polls
 export const createPoll = (question, options) => api.post('/polls', { question, options });
