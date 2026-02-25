@@ -13,19 +13,19 @@ router.post('/login', async (req, res) => {
     }
 
     // Fetch member from DB
-    const { data: member, error } = await supabase
+    console.log('TRYING LOGIN FOR', member_id, password); const { data: member, error } = await supabase
         .from('members')
         .select('*')
         .eq('member_id', member_id.toUpperCase())
         .single();
 
     if (error || !member) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        console.log('MEMBER FOUND:', member, 'ERROR:', error); return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Password = party name (case-insensitive)
     const expectedPassword = member.party.toLowerCase();
-    if (password.toLowerCase() !== expectedPassword) {
+    console.log('EXPECTED:', expectedPassword, 'GOT:', password.toLowerCase()); if (password.toLowerCase() !== expectedPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
     }
 

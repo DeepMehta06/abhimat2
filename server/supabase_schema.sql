@@ -195,7 +195,7 @@ insert into members (member_id, name, party, constituency, alignment, role) valu
 
 -- Display Account (password = "DASH", member_id = "DASHMOD")
 insert into members (member_id, name, party, constituency, alignment, role) values
-  ('DASHMOD', 'Main Display', 'SYS', 'System', null, 'display');
+  ('DASHMOD', 'Main Display', 'DASH', 'System', null, 'display');
 
 -- Judges (password = "JDG", member_id = JDG...)
 insert into members (member_id, name, party, constituency, alignment, role) values
