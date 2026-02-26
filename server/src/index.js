@@ -31,12 +31,7 @@ export const raiseHandWindowStore = new Map();
 // Security & logging
 app.use(helmet());
 app.use(morgan("dev"));
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://abhimat.netlify.app",
-  ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",") : []),
-];
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // Global rate limiter — raised for events where all users share same WiFi IP
