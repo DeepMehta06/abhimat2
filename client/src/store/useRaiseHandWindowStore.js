@@ -4,12 +4,14 @@ const useRaiseHandWindowStore = create((set) => ({
   isEnabled: false,
   isWindowActive: false,
   timeRemaining: 0,
+  hasRaised: false,
 
-  setWindowState: (isEnabled, isWindowActive, timeRemaining) =>
+  setWindowState: (isEnabled, isWindowActive, timeRemaining, hasRaised = false) =>
     set({
       isEnabled,
       isWindowActive,
       timeRemaining,
+      hasRaised,
     }),
 
   setTimeRemaining: (timeRemaining) =>
@@ -22,6 +24,7 @@ const useRaiseHandWindowStore = create((set) => ({
       isEnabled: false,
       isWindowActive: false,
       timeRemaining: 0,
+      hasRaised: false,
     }),
 }));
 

@@ -68,7 +68,7 @@ router.post("/raise", authMiddleware, async (req, res) => {
   const speechCount = req.user.speeches_count || 0;
 
   // Check if user has exhausted speeches (max 2 chances)
-  if (speechCount >= 2) {
+  if (speechCount >= 5) {
     return res.status(403).json({ error: "You have no chances left to speak" });
   }
 

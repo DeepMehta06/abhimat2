@@ -3,10 +3,16 @@ import { supabase } from "../supabase.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { raiseHandAccessStore, raiseHandWindowStore } from "../index.js";
 
-// Broadcast helper
+// Create and subscribe to the broadcast channel ONCE at module load
+const raiseHandChannel = supabase.channel("raise-hand-updates");
+raiseHandChannel.subscribe((status) => {
+  console.log("Raise hand broadcast channel status:", status);
+});
+
+// Broadcast helper — uses the pre-subscribed channel
 async function broadcastRaiseHandWindowState(sessionId, isEnabled, isWindowActive, timeRemaining) {
   try {
-    await supabase.channel("raise-hand-updates").send({
+    await raiseHandChannel.send({
       type: "broadcast",
       event: "window_state_changed",
       payload: {
@@ -70,6 +76,9 @@ router.post("/stage", authMiddleware, async (req, res) => {
 
 // GET /session/raise-hand/status
 router.get("/raise-hand/status", authMiddleware, async (req, res) => {
+  // Disable caching so members always get fresh state (no 304s)
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.set("ETag", false);
   try {
     // Get active session
     const { data: session, error: sessionError } = await supabase
@@ -92,16 +101,19 @@ router.get("/raise-hand/status", authMiddleware, async (req, res) => {
 
     let isWindowActive = false;
     let timeRemaining = 0;
+    let hasRaised = false;
 
     if (window && now < window.windowEnd) {
       isWindowActive = true;
       timeRemaining = Math.max(0, window.windowEnd - now);
+      hasRaised = window.pressedMembers.has(req.user.id);
     }
 
     res.json({
       isEnabled,
       isWindowActive,
       timeRemaining,
+      hasRaised,
     });
   } catch (err) {
     console.error("Raise hand status error:", err);
@@ -140,7 +152,7 @@ router.patch("/raise-hand", authMiddleware, async (req, res) => {
     // If enabling, create a new 5-second window
     if (raise_hand_enabled) {
       const now = Date.now();
-      const windowEnd = now + 5000; // 5 seconds
+      const windowEnd = now + 40000; // 40 seconds
       raiseHandWindowStore.set(session.id, {
         windowStart: now,
         windowEnd,
@@ -148,9 +160,9 @@ router.patch("/raise-hand", authMiddleware, async (req, res) => {
       });
 
       // Broadcast window activation
-      await broadcastRaiseHandWindowState(session.id, true, true, 5000);
+      await broadcastRaiseHandWindowState(session.id, true, true, 40000);
 
-      // Auto-expire window after 5 seconds
+      // Auto-expire window after 40 seconds
       setTimeout(() => {
         if (raiseHandWindowStore.has(session.id)) {
           raiseHandWindowStore.delete(session.id);
@@ -158,7 +170,7 @@ router.patch("/raise-hand", authMiddleware, async (req, res) => {
         raiseHandAccessStore.set(session.id, false);
         // Broadcast window expiration
         broadcastRaiseHandWindowState(session.id, false, false, 0);
-      }, 5000);
+      }, 40000);
     } else {
       // If disabling, clear the window
       raiseHandWindowStore.delete(session.id);

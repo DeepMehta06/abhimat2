@@ -20,7 +20,6 @@ import WaitingRoom from "../components/WaitingRoom";
 const TABS = [
   { id: "home", icon: "dashboard", label: "Session" },
   { id: "polls", icon: "leaderboard", label: "Polls" },
-  { id: "chat", icon: "forum", label: "Chat" },
 ];
 
 export default function MemberDashboard() {
@@ -95,9 +94,9 @@ export default function MemberDashboard() {
     const pollWindowStatus = async () => {
       try {
         const res = await getRaiseHandStatus();
-        const { isEnabled, isWindowActive: active, timeRemaining: remaining } =
+        const { isEnabled, isWindowActive: active, timeRemaining: remaining, hasRaised } =
           res.data;
-        setWindowState(isEnabled, active, remaining);
+        setWindowState(isEnabled, active, remaining, hasRaised);
       } catch (err) {
         console.error("Failed to poll raise hand status:", err);
       }
@@ -139,7 +138,7 @@ export default function MemberDashboard() {
     loadParty,
   ]);
 
-  const speechesLeft = Math.max(0, 2 - (user?.speeches_count || 0));
+  const speechesLeft = Math.max(0, 5 - (user?.speeches_count || 0));
 
   /* ── Desktop sidebar nav ─────────────────────────────────────────── */
   const Sidebar = () => (
@@ -184,11 +183,10 @@ export default function MemberDashboard() {
             key={id}
             onClick={() => setTab(id)}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-gray-50
-                            ${
-                              tab === id
-                                ? "bg-saffron/10 text-saffron shadow-sm"
-                                : "text-gray-500 hover:text-neutral-dark"
-                            }`}
+                            ${tab === id
+                ? "bg-saffron/10 text-saffron shadow-sm"
+                : "text-gray-500 hover:text-neutral-dark"
+              }`}
           >
             <span
               className={`material-symbols-outlined text-xl transition-transform ${tab === id ? "fill-[1] scale-110" : ""}`}
@@ -211,12 +209,12 @@ export default function MemberDashboard() {
               <span className="text-xl font-black text-neutral-dark">
                 {speechesLeft}
               </span>
-              <span className="text-sm font-bold text-gray-400">/ 2</span>
+              <span className="text-sm font-bold text-gray-400">/ 5</span>
             </div>
             <div className="h-1.5 w-full bg-gray-200 rounded-full mt-2 overflow-hidden shadow-inner">
               <div
                 className="h-full bg-accent transition-all duration-500"
-                style={{ width: `${(speechesLeft / 2) * 100}%` }}
+                style={{ width: `${(speechesLeft / 5) * 100}%` }}
               />
             </div>
           </div>
@@ -297,12 +295,12 @@ export default function MemberDashboard() {
                   <span className="text-2xl font-black text-neutral-dark">
                     {speechesLeft}
                   </span>
-                  <span className="text-sm font-bold text-gray-400">/ 2</span>
+                  <span className="text-sm font-bold text-gray-400">/ 5</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-100 rounded-full mt-2 overflow-hidden shadow-inner">
                   <div
                     className="h-full bg-accent transition-all duration-500"
-                    style={{ width: `${(speechesLeft / 2) * 100}%` }}
+                    style={{ width: `${(speechesLeft / 5) * 100}%` }}
                   />
                 </div>
               </div>
@@ -479,12 +477,6 @@ export default function MemberDashboard() {
               <div className="flex flex-col gap-4">
                 <Leaderboard leaderboard={leaderboard || []} />
               </div>
-            </div>
-          )}
-
-          {tab === "chat" && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <ChatPanel sessionId={session?.id} />
             </div>
           )}
         </main>

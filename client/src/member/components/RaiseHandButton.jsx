@@ -1,23 +1,21 @@
 import { useState, useEffect } from "react";
 import { raiseHand, lowerHand } from "../../shared/services/api";
-import useRaiseHandStore from "../../store/useRaiseHandStore";
 import useRaiseHandWindowStore from "../../store/useRaiseHandWindowStore";
 
 export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
   const [loading, setLoading] = useState(false);
-  const { raiseHandEnabled } = useRaiseHandStore();
-  const { isWindowActive, timeRemaining } = useRaiseHandWindowStore();
+  const { isEnabled, isWindowActive, timeRemaining, hasRaised } = useRaiseHandWindowStore();
 
   const isWaiting = queueEntry?.status === "waiting";
   const isSpeaking = queueEntry?.status === "speaking";
   const speechesLeft = Math.max(
     0,
-    2 - (queueEntry?.member?.speeches_count || 0),
+    5 - (queueEntry?.member?.speeches_count || 0),
   );
   const noChancesLeft = speechesLeft === 0;
 
   async function handleRaise(e) {
-    if (noChancesLeft || !isWindowActive) {
+    if (noChancesLeft || !isWindowActive || hasRaised) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -98,7 +96,7 @@ export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
     );
   }
 
-  if (!raiseHandEnabled || !isWindowActive) {
+  if (!isEnabled || !isWindowActive) {
     return (
       <div className="col-span-8 relative overflow-hidden rounded-xl p-5 flex flex-col justify-between h-32 bg-red-100 border border-red-300 opacity-60 cursor-not-allowed">
         <div className="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4">
@@ -118,17 +116,39 @@ export default function RaiseHandButton({ queueEntry, session, onUpdate }) {
     );
   }
 
+  // Already raised in this window — show disabled "done" state
+  if (hasRaised) {
+    return (
+      <div className="col-span-8 relative overflow-hidden rounded-xl p-5 flex flex-col justify-between h-32 bg-amber-100 border border-amber-300 opacity-80 cursor-not-allowed">
+        <div className="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4">
+          <span className="material-symbols-outlined text-[120px]">
+            front_hand
+          </span>
+        </div>
+        <div className="flex items-center justify-between w-full">
+          <span className="material-symbols-outlined text-3xl bg-amber-200 p-2 rounded-lg text-amber-700">
+            check_circle
+          </span>
+          <span className="bg-amber-200 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest text-amber-700">
+            {timeRemaining > 0 ? `${Math.ceil(timeRemaining / 1000)}s` : "Done"}
+          </span>
+        </div>
+        <span className="text-xl font-black tracking-tighter text-left mt-2 text-amber-700">
+          HAND RAISED ✓
+        </span>
+      </div>
+    );
+  }
+
   return (
     <button
       onClick={handleRaise}
       disabled={loading || noChancesLeft}
-      className={`col-span-8 group relative overflow-hidden rounded-xl p-5 flex flex-col justify-between h-32 transition-all ${
-        noChancesLeft ? "cursor-not-allowed opacity-60" : "active:scale-[0.98]"
-      } ${
-        noChancesLeft
+      className={`col-span-8 group relative overflow-hidden rounded-xl p-5 flex flex-col justify-between h-32 transition-all ${noChancesLeft ? "cursor-not-allowed opacity-60" : "active:scale-[0.98]"
+        } ${noChancesLeft
           ? "bg-gray-300 text-gray-500"
           : "bg-india-green text-white shadow-lg shadow-india-green/20"
-      }`}
+        }`}
     >
       <div className="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4">
         <span className="material-symbols-outlined text-[120px]">

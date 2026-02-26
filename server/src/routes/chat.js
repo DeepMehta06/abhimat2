@@ -20,12 +20,15 @@ router.get('/', authMiddleware, async (req, res) => {
     const { data, error } = await supabase
         .from('chat_messages')
         .select(`id, content, created_at, is_golden, golden_at, 
-                 member:members(id, name, party)`)
+                 member:members!member_id(id, name, party)`)
         .eq('session_id', session.id)
         .order('created_at', { ascending: false })
         .range(page * limit, page * limit + limit - 1);
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+        console.error('Chat GET error:', error);
+        return res.status(500).json({ error: error.message });
+    }
 
     // Fetch grader info separately if needed
     res.json({ messages: (data || []).reverse() });
@@ -48,7 +51,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const { data, error } = await supabase
         .from('chat_messages')
         .insert({ session_id: session.id, member_id: req.user.id, content: content.trim() })
-        .select('id, content, created_at, member:members(id, name, party)')
+        .select('id, content, created_at, member:members!member_id(id, name, party)')
         .single();
 
     if (error) return res.status(500).json({ error: error.message });
@@ -111,7 +114,7 @@ router.patch('/:messageId/golden', authMiddleware, async (req, res) => {
         .update(updateData)
         .eq('id', messageId)
         .select(`id, content, created_at, is_golden, golden_at, golden_by_id,
-                 member:members(id, name, party)`)
+                 member:members!member_id(id, name, party)`)
         .single();
 
     if (error) return res.status(500).json({ error: error.message });

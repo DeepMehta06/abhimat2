@@ -159,7 +159,7 @@ export default function SpeakerQueue() {
                         </div>
                     )}
                     {waiting.slice(0, 10).map((entry, idx) => {
-                        const chancesAvailable = Math.max(0, 2 - (entry.member?.speeches_count || 0));
+                        const chancesAvailable = Math.max(0, 5 - (entry.member?.speeches_count || 0));
                         return (
                             <div key={entry.id} className="group flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-soft hover:shadow-md transition-all">
                                 <div className="flex items-center gap-3">

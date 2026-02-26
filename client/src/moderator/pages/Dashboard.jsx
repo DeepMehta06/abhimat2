@@ -344,9 +344,9 @@ export default function ModeratorDashboard() {
               </div>
 
               {/* Re-integrated Chat Panel for Moderator side */}
-              <div className="flex flex-col gap-4">
+              {/* <div className="flex flex-col gap-4">
                 <ChatPanel sessionId={session?.id} />
-              </div>
+              </div> */}
             </div>
           )}
 
